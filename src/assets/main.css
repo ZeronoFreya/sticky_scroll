@@ -1,0 +1,14 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    font-weight: normal;
+}
+
+#app {
+    margin: 0;
+    padding: 0;
+    background-color: #181818;
+    color: #f0f0f0;
+}
