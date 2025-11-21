@@ -2,19 +2,77 @@
 // div(v-show="isVisible" v-scroll="{ onShow: handleShow, onHide: handleHide }")
 import { reactive, watch } from 'vue'
 
+import './style.css'
+
 // 辅助函数：检查纯对象（排除数组、null 等）
 const isPlainObject = (val) => {
     return val && typeof val === 'object' && val.constructor === Object
 }
 
+// let animationFrameId = null
+
+function throttle(fn, delay = 300, { leading = true, trailing = true } = {}) {
+    let timer = null
+    let lastArgs = null
+
+    return function (...args) {
+        if (!timer) {
+            leading && fn.apply(this, args) // 第一次立即执行
+            timer = setTimeout(() => {
+                timer = null
+                trailing && lastArgs && fn.apply(this, lastArgs)
+                lastArgs = null
+            }, delay)
+        } else {
+            lastArgs = args // 持续更新参数，保证最后一次能拿到最新的 args
+        }
+    }
+}
+
+function refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta) {
+    if (el._animationFrameId != null) {
+        cancelAnimationFrame(el._animationFrameId)
+    }
+    el._animationFrameId = requestAnimationFrame(() => {
+        const translateX = (scrollLeft + scrollDelta.x) * -1
+        const translateY = (scrollTop + scrollDelta.y) * -1
+        refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+
+        if (refEl.overscroll.before_x) {
+            refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
+            refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+        }
+        if (refEl.overscroll.before_y) {
+            refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
+            refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
+        }
+    })
+}
+
+// const refElTransform2 = throttle(
+//     (refEl, translateX, translateY, scrollTop, scrollLeft, scrollDelta) => {
+//         if (animationFrameId != null) {
+//             cancelAnimationFrame(animationFrameId)
+//         }
+//         animationFrameId = requestAnimationFrame(() => {
+//             refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+
+//             refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
+//             refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+//             refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
+//             refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
+//         })
+//     },
+//     60,
+// )
+
 function activeScrollBar(
+    el,
     refEl,
-    {
-        scrollBar, // 滚动条的节点
-        scrollPanel, // 滚动区域的节点, 一般是具有 overflow 的元素
-        scroll = 'y', // 滚动方向, x 或 y
-    } = {},
+    scrollDelta,
+    scroll = 'y', // 滚动方向, x 或 y
 ) {
+    refEl.scrollbar.scroll_x
     // 滑道
     const track = document.createElement('div')
     // 滑块
@@ -23,7 +81,7 @@ function activeScrollBar(
     track.innerHTML = `<div class='track_view_${scroll}'></div>`
 
     track.appendChild(thumb)
-    scrollBar.appendChild(track)
+    refEl.scrollbar['scroll_' + scroll].appendChild(track)
 
     track.classList.add('track_' + scroll)
     thumb.classList.add('thumb_' + scroll)
@@ -35,12 +93,50 @@ function activeScrollBar(
     let thumb_mouse_offset = 0
 
     const offsetSize = scroll == 'x' ? 'offsetWidth' : 'offsetHeight'
-
     const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
+
+    // const aaa = throttle((scrollLeft, scrollTop) => {
+    //     let translateX = (scrollLeft + scrollDelta.x) * -1
+    //     let translateY = (scrollTop + scrollDelta.y) * -1
+    //     refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+
+    //     refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
+    //     refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+    //     refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
+    //     refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
+    // }, 100)
 
     const pointermove = (e) => {
         let offset = (scroll == 'x' ? e.offsetX : e.offsetY) - thumb_mouse_offset
-        scrollPanel[scrollPos] = Math.round(offset * math_temp)
+
+        let s = Math.round(offset * math_temp)
+
+        const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
+        const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
+
+        const MaxScroll = scroll == 'x' ? scrollWidth - offsetWidth : scrollHeight - offsetHeight
+
+        if (s > 0 && s < MaxScroll) {
+            refEl.scroll_box[scrollPos] = s
+            return
+        }
+
+        if (scroll == 'x') {
+            if (s < 0) {
+                scrollDelta.x = Math.max(s, -refEl.overscroll.before_x.offsetWidth)
+            } else {
+                scrollDelta.x = Math.min(s, refEl.overscroll.after_x.offsetWidth)
+            }
+        } else {
+            if (s < 0) {
+                scrollDelta.y = Math.max(s, -refEl.overscroll.before_y.offsetHeight)
+            } else {
+                scrollDelta.y = Math.min(s, refEl.overscroll.after_y.offsetHeight)
+            }
+        }
+
+        // aaa(scrollLeft, scrollTop)
+        refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
     }
     const pointerup = () => {
         track.classList.remove('track_down')
@@ -54,6 +150,7 @@ function activeScrollBar(
         'pointerdown',
         (e) => {
             track.classList.add('track_down')
+            // scrollDelta[scroll] = 0
             let offset = scroll == 'x' ? e.offsetX : e.offsetY
             math_temp = refEl.scroll_content[offsetSize] / track[offsetSize]
 
@@ -65,7 +162,7 @@ function activeScrollBar(
                 // 在 track 拖拽: 使用 thumb 的中心
                 thumb_mouse_offset = thumb[offsetSize] / 2
                 offset -= thumb_mouse_offset
-                scrollPanel[scrollPos] = Math.round(offset * math_temp)
+                refEl.scroll_box[scrollPos] = Math.round(offset * math_temp)
             }
 
             track.addEventListener('pointerup', pointerup, false)
@@ -95,16 +192,12 @@ function stickyDom(el, refEl) {
     refEl.sticky_anchor.appendChild(refEl.scroll_content)
 }
 
-function scrollbarDom(el, refEl, scroll) {
+function scrollbarDom(el, refEl, scrollDelta, scroll) {
     if (scroll.includes('x')) {
         refEl.scrollbar.scroll_x = document.createElement('div')
         refEl.scrollbar.scroll_x.classList.add('sticky_scroll_x')
         el.appendChild(refEl.scrollbar.scroll_x)
-        const { track, thumb } = activeScrollBar(refEl, {
-            scrollBar: refEl.scrollbar.scroll_x,
-            scrollPanel: refEl.scroll_box,
-            scroll: 'x',
-        })
+        const { track, thumb } = activeScrollBar(el, refEl, scrollDelta, 'x')
         refEl.scrollbar.track_x = track
         refEl.scrollbar.thumb_x = thumb
     }
@@ -112,11 +205,7 @@ function scrollbarDom(el, refEl, scroll) {
         refEl.scrollbar.scroll_y = document.createElement('div')
         refEl.scrollbar.scroll_y.classList.add('sticky_scroll_y')
         el.appendChild(refEl.scrollbar.scroll_y)
-        const { track, thumb } = activeScrollBar(refEl, {
-            scrollBar: refEl.scrollbar.scroll_y,
-            scrollPanel: refEl.scroll_box,
-            scroll: 'y',
-        })
+        const { track, thumb } = activeScrollBar(el, refEl, scrollDelta, 'y')
 
         refEl.scrollbar.track_y = track
         refEl.scrollbar.thumb_y = thumb
@@ -139,6 +228,7 @@ function spacerDom(refEl, scroll) {
         refEl.spacer_y.style.cssText = cssText
         refEl.scroll_box.appendChild(refEl.spacer_y)
     }
+
     if (scroll.includes('y')) {
         refEl.scroll_box.style.overflowY = 'auto'
         if (!refEl.spacer_y) {
@@ -161,161 +251,6 @@ function overscrollDom(refEl, scroll) {
 }
 
 export default {
-    beforeMount(el, binding) {
-        let styleEl = document.getElementById('stickyScrollStyle')
-        if (!styleEl) {
-            // 如果不存在，创建新的 style 元素
-            styleEl = document.createElement('style')
-            styleEl.id = 'stickyScrollStyle'
-            // 填充 CSS 内容
-            styleEl.innerHTML = `
-            .sticky_hide_default_scrollbar::-webkit-scrollbar {
-                display: none;
-            }
-            .scroll_box{
-                z-index: 1;
-            }
-            .sticky_anchor{
-                width:100%;
-                height:0px;
-                position:sticky;
-                top:0px;
-                left:0px;
-            }
-            .scroll_content{
-                width: fit-content;
-                height: fit-content;
-                position: absolute;
-                top: 0;
-                left: 0;
-                transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
-            }
-            .sticky_scroll_x{
-                position: absolute;
-                z-index: 2;
-                width:100%;
-                height: 16px;
-                left: 0px;
-                padding: 0 15px;
-            }
-            .sticky_scroll_y{
-                position: absolute;
-                z-index: 2;
-                top: 0;
-                width: 16px;
-                height: 100%;
-                padding: 15px 0;
-            }
-            .track_x, .track_y{
-                position: relative;
-                width:100%;
-                height: 100%;
-                border-radius: 100vw;
-                background: rgba(44, 44, 44, 0);
-                transition: background 0.6s ease;
-            }
-            .track_x:hover .thumb_x, .track_y:hover .thumb_y{
-                padding: 3px;
-            }
-            
-            .track_view_x, .track_view_y{
-                z-index: 1;
-                opacity: 0;
-                position: absolute;
-                background: rgba(44, 44, 44, 1);
-                border-radius: 100vw;
-                transition: opacity 0.2s ease;
-            }
-            .track_view_x{
-                top: 50%;
-                left: 0px;
-                transform: translateY(-50%);
-                width: 100%;
-                height: 20%;
-            }
-            .track_view_y{
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 20%;
-                height: 100%;
-            }
-            .track_down .track_view_x, .track_down .track_view_y{
-                opacity: 1;
-            }
-            .track_down .thumb_view_x, .track_down .thumb_view_y{
-                background: rgba(44, 44, 44, 1);
-            }
-            .thumb_x{
-                width: 0px;
-                height: 100%;
-            }
-            .thumb_y{
-                width: 100%;
-                height: 0px;
-            }
-            .thumb_x, .thumb_y{
-                position: relative;
-                z-index: 2;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1), padding 0.1s ease;
-                padding: 6px;
-            }
-            .thumb_view_x, .thumb_view_y{
-                pointer-events: none;
-                width: 100%;
-                height: 100%;
-                border-radius: 100vw;
-                background: #9F9F9F;
-                transition: background 0.2s ease;
-            }
-            .overscroll_before_x,
-            .overscroll_after_x {
-                transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
-                position: absolute;
-                height: 100%;
-                width: 100px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            .overscroll_before_x {
-                left: 0;
-                top: 0;
-                transform: translateX(-100%);
-            }
-            .overscroll_after_x {
-                right: 0;
-                top: 0;
-                transform: translateX(100%);
-            }
-            .overscroll_before_y,
-            .overscroll_after_y {
-                transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
-                position: absolute;
-                width: 100%;
-                height: 100px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            .overscroll_before_y {
-                top: 0;
-                left: 0;
-                transform: translateY(-100%);
-            }
-            .overscroll_after_y {
-                bottom: 0;
-                left: 0;
-                transform: translateY(100%);
-            }
-            `
-            // 追加到 head
-            document.head.appendChild(styleEl)
-        }
-    },
     mounted(el, binding) {
         const {
             scroll = 'y',
@@ -368,6 +303,11 @@ export default {
         }
         el._refEl = refEl
 
+        const scrollDelta = {
+            x: 0,
+            y: 0,
+        }
+
         if (CSB) {
             stickyDom(el, refEl)
             refEl.scroll_box = el
@@ -380,7 +320,7 @@ export default {
             refEl.scroll_box.appendChild(refEl.sticky_anchor)
             el.appendChild(refEl.scroll_box)
             spacerDom(refEl, scroll)
-            scrollbarDom(el, refEl, scroll)
+            scrollbarDom(el, refEl, scrollDelta, scroll)
 
             if (scroll.includes('x')) {
                 const key = reverseX ? 'top' : 'bottom'
@@ -399,161 +339,159 @@ export default {
         if (scroll == 'x') {
             refEl.scroll_content.style.display = 'flex'
 
-            // 水平滚动下, 使滚轮支持水平滚动
-            el._handleWheel = (event) => {
-                event.preventDefault() // 阻止默认垂直滚动
+            // // 水平滚动下, 使滚轮支持水平滚动
+            // el._handleWheel = (event) => {
+            //     event.preventDefault() // 阻止默认垂直滚动
 
-                const delta = event.deltaY || event.deltaX // 优先垂直滚轮用于水平，deltaX 为自然水平滚轮
-                const scrollAmount = delta * 1 // 滚动步长，可调整（像素单位）
+            //     const delta = event.deltaY || event.deltaX // 优先垂直滚轮用于水平，deltaX 为自然水平滚轮
+            //     const scrollAmount = delta * 1 // 滚动步长，可调整（像素单位）
 
-                refEl.scroll_box.scrollLeft += scrollAmount
-            }
-            refEl.scroll_box.addEventListener('wheel', el._handleWheel, { passive: false })
+            //     refEl.scroll_box.scrollLeft += scrollAmount
+            // }
+            // refEl.scroll_box.addEventListener('wheel', el._handleWheel, { passive: false })
         } else if (scroll == 'y') {
             refEl.scroll_content.style.width = '100%'
         }
 
-        let translateX = 0
-        let translateY = 0
-        let scrollDeltaX = 0
-        let scrollDeltaY = 0
+        const scrollX = (event, scrollLeft, MaxScrollLeft) => {
+            if (scrollLeft > 0 && scrollLeft < MaxScrollLeft) {
+                scrollDelta.x = 0
+                // translateX = 0
+                return true
+            }
+            if (scrollLeft <= 0) {
+                // 左边界
+                if (event.deltaY < 0) {
+                    // 左滚 → 继续拉伸（负）
+                    scrollDelta.x += event.deltaY
+                    scrollDelta.x = Math.max(scrollDelta.x, -refEl.overscroll.before_x.offsetWidth)
+                    event.preventDefault()
+                } else {
+                    // 右滚 → 消耗或吸附
+                    if (scrollDelta.x < 0) {
+                        // 只有已经拉伸了才处理
+                        event.preventDefault()
+                        if (-scrollDelta.x < event.deltaY) {
+                            // 可滚动空间不足deltaY
+                            scrollDelta.x = 0
+                        } else {
+                            scrollDelta.x += event.deltaY // deltaY 为正
+                            scrollDelta.x = Math.min(scrollDelta.x, 0)
+                        }
+                    }
+                }
+            } else {
+                // 右边界
+                if (event.deltaY < 0) {
+                    // 左滚 → 消耗或吸附
+                    if (scrollDelta.x > 0) {
+                        event.preventDefault()
+                        if (scrollDelta.x < -event.deltaY) {
+                            scrollDelta.x = 0
+                        } else {
+                            scrollDelta.x += event.deltaY
+                            scrollDelta.x = Math.max(scrollDelta.x, 0)
+                        }
+                    }
+                } else {
+                    // 右滚 → 继续拉伸（正）
+                    scrollDelta.x += event.deltaY
+                    scrollDelta.x = Math.min(scrollDelta.x, refEl.overscroll.after_x.offsetWidth)
+                    event.preventDefault()
+                }
+            }
+            return false
+        }
+        const scrollY = (event, scrollTop, MaxScrollTop) => {
+            // 还没到顶部也还没到底部：正常滚动，直接返回
+            if (scrollTop > 0 && scrollTop < MaxScrollTop) {
+                scrollDelta.y = 0
+                // translateY = 0
+                return true
+            }
+            if (scrollTop <= 0) {
+                // 上边界
+                if (event.deltaY < 0) {
+                    // 上滚 → 继续拉伸（负）
+                    scrollDelta.y += event.deltaY
+                    scrollDelta.y = Math.max(scrollDelta.y, -refEl.overscroll.before_y.offsetHeight)
+                    event.preventDefault()
+                } else {
+                    // 下滚 → 消耗或吸附
+                    if (scrollDelta.y < 0) {
+                        // 只有已经拉伸了才处理
+                        event.preventDefault()
+                        if (-scrollDelta.y < event.deltaY) {
+                            // 可滚动空间不足deltaY
+                            scrollDelta.y = 0
+                        } else {
+                            scrollDelta.y += event.deltaY // deltaY 为正
+                            scrollDelta.y = Math.min(scrollDelta.y, 0)
+                        }
+                    }
+                }
+            } else {
+                // 下边界
+                if (event.deltaY < 0) {
+                    // 上滚 → 消耗或吸附
+                    if (scrollDelta.y > 0) {
+                        event.preventDefault()
+                        if (scrollDelta.y < -event.deltaY) {
+                            scrollDelta.y = 0
+                        } else {
+                            scrollDelta.y += event.deltaY
+                            scrollDelta.y = Math.max(scrollDelta.y, 0)
+                        }
+                    }
+                } else {
+                    // 下滚 → 继续拉伸（正）
+                    scrollDelta.y += event.deltaY
+                    scrollDelta.y = Math.min(scrollDelta.y, refEl.overscroll.after_y.offsetHeight)
+                    event.preventDefault()
+                }
+            }
+            return false
+        }
+
+        // let translateX = 0
+        // let translateY = 0
         refEl.scroll_box.addEventListener(
             'wheel',
             (event) => {
+                // event.deltaY < 0   // 滚动条上｜左, 内容下｜右
+                // event.deltaY > 0   // 滚动条下｜右, 内容上｜左
+
                 const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
 
                 const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } =
                     refEl.scroll_content
 
-                if (event.shiftKey) {
-                    const MaxScrollLeft = scrollWidth - offsetWidth
-
-                    if (scrollLeft > 0 && scrollLeft < MaxScrollLeft) {
-                        scrollDeltaX = 0
-                        translateX = 0
-                        return
-                    }
-
-                    // 先判断边界，再判断滚动方向 —— 这就是你说的“对调”核心
-                    if (scrollLeft <= 0) {
-                        // 左边界
-                        if (event.wheelDeltaY > 0) {
-                            // 上滚 → 想往左 → 继续拉伸（负）
-                            scrollDeltaX -= event.wheelDeltaY
-                            scrollDeltaX = Math.max(
-                                scrollDeltaX,
-                                -refEl.overscroll.before_x.offsetWidth,
-                            )
-                            event.preventDefault()
-                        } else {
-                            // 下滚 → 想往右 → 消耗或吸附
-                            if (scrollDeltaX < 0) {
-                                // 只有已经拉伸了才处理
-                                event.preventDefault()
-                                if (scrollDeltaX > event.wheelDeltaY) {
-                                    // 吸附条件原样保留
-                                    scrollDeltaX = 0
-                                } else {
-                                    scrollDeltaX -= event.wheelDeltaY // wheelDeltaY 为负
-                                    scrollDeltaX = Math.min(scrollDeltaX, 0)
-                                }
-                            }
-                        }
-                    } else {
-                        // 右边界
-                        if (event.wheelDeltaY > 0) {
-                            // 上滚 → 想往左 → 消耗或吸附
-                            if (scrollDeltaX > 0) {
-                                event.preventDefault()
-                                if (scrollDeltaX < event.wheelDeltaY) {
-                                    scrollDeltaX = 0
-                                } else {
-                                    scrollDeltaX -= event.wheelDeltaY
-                                    scrollDeltaX = Math.max(scrollDeltaX, 0)
-                                }
-                            }
-                        } else {
-                            // 下滚 → 想往右 → 继续拉伸（正）
-                            scrollDeltaX -= event.wheelDeltaY // wheelDeltaY 为负 → 变正
-                            scrollDeltaX = Math.min(
-                                scrollDeltaX,
-                                refEl.overscroll.after_x.offsetWidth,
-                            )
-                            event.preventDefault()
-                        }
-                    }
-
-                    translateX = (scrollLeft + scrollDeltaX) * -1
+                if (scroll == 'x') {
+                    const delta = event.deltaY || event.deltaX
+                    refEl.scroll_box.scrollLeft += delta
+                    if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
+                    // if (event.shiftKey) {
+                    //     if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
+                    // } else {
+                    //     if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
+                    // }
+                } else if (scroll == 'y') {
+                    if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
                 } else {
-                    // translateX = 0
-                    // scrollDeltaX = 0 // 水平清零
-
-                    const MaxScrollTop = scrollHeight - offsetHeight
-
-                    // 还没到顶部也还没到底部：正常滚动，直接返回
-                    if (scrollTop > 0 && scrollTop < MaxScrollTop) {
-                        scrollDeltaY = 0
-                        translateY = 0
-                        return
-                    }
-
-                    // 已到边界，进入橡胶带逻辑
-                    if (scrollTop <= 0) {
-                        // 顶部边界
-                        if (event.wheelDeltaY > 0) {
-                            // 上滚 → 继续往上拉（负）
-                            scrollDeltaY -= event.wheelDeltaY
-                            scrollDeltaY = Math.max(
-                                scrollDeltaY,
-                                -refEl.overscroll.before_y.offsetHeight,
-                            )
-                            event.preventDefault()
-                        } else {
-                            // 下滚 → 往回滚，带吸附
-                            if (scrollDeltaY < 0) {
-                                event.preventDefault()
-                                if (scrollDeltaY > event.wheelDeltaY) {
-                                    // 吸附
-                                    scrollDeltaY = 0
-                                } else {
-                                    scrollDeltaY -= event.wheelDeltaY
-                                    scrollDeltaY = Math.min(scrollDeltaY, 0)
-                                }
-                            }
-                        }
+                    if (event.shiftKey) {
+                        if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
                     } else {
-                        // 底部边界（必然是这里）
-                        if (event.wheelDeltaY > 0) {
-                            // 上滚 → 往回滚，带吸附
-                            if (scrollDeltaY > 0) {
-                                event.preventDefault()
-                                if (scrollDeltaY < event.wheelDeltaY) {
-                                    scrollDeltaY = 0
-                                } else {
-                                    scrollDeltaY -= event.wheelDeltaY
-                                    scrollDeltaY = Math.max(scrollDeltaY, 0)
-                                }
-                            }
-                        } else {
-                            // 下滚 → 继续往下拉（正）
-                            scrollDeltaY -= event.wheelDeltaY // wheelDeltaY < 0 → 正值
-                            scrollDeltaY = Math.min(
-                                scrollDeltaY,
-                                refEl.overscroll.after_y.offsetHeight,
-                            )
-                            event.preventDefault()
-                        }
+                        if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
                     }
-
-                    translateY = (scrollTop + scrollDeltaY) * -1
                 }
 
-                refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+                // refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
 
-                refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDeltaY}px, 0)`
-                refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDeltaY}px, 0)`
-                refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDeltaX}px, -100%, 0)`
-                refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDeltaX}px, 100%, 0)`
+                // refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
+                // refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+                // refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
+                // refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
             },
             { passive: false },
         )
@@ -563,9 +501,7 @@ export default {
 
             const { scrollLeft, scrollTop } = refEl.scroll_box
             // refEl.scroll_content.style.transform = `translate3d(${-scrollLeft}px, ${-scrollTop}px, 0)`
-            translateX = (scrollLeft + scrollDeltaX) * -1
-            translateY = (scrollTop + scrollDeltaY) * -1
-            refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
             if (CSB) {
                 CSB.move(scrollLeft, scrollTop, scrollWidth, scrollHeight)
@@ -577,10 +513,15 @@ export default {
                     refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${(refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight}px, 0)`
                 }
             }
-            refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDeltaY}px, 0)`
-            refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDeltaY}px, 0)`
-            refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDeltaX}px, -100%, 0)`
-            refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDeltaX}px, 100%, 0)`
+
+            refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+            // translateX = (scrollLeft + scrollDelta.x) * -1
+            // translateY = (scrollTop + scrollDelta.y) * -1
+            // refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+            // refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
+            // refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+            // refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
+            // refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
         })
 
         const _resize = () => {
@@ -588,6 +529,7 @@ export default {
             if (refEl.spacer_x) {
                 refEl.spacer_x.style.width = offsetWidth + 'px'
             }
+
             if (refEl.spacer_y) {
                 refEl.spacer_y.style.height = offsetHeight + 'px'
             }
@@ -616,10 +558,15 @@ export default {
                         'px'
                 }
             }
-            refEl.overscroll.before_x.style.height = refEl.scroll_box.offsetHeight + 'px'
-            refEl.overscroll.after_x.style.height = refEl.scroll_box.offsetHeight + 'px'
-            refEl.overscroll.before_y.style.width = refEl.scroll_box.offsetWidth + 'px'
-            refEl.overscroll.after_y.style.width = refEl.scroll_box.offsetWidth + 'px'
+
+            if (refEl.overscroll.before_x) {
+                refEl.overscroll.before_x.style.height = refEl.scroll_box.offsetHeight + 'px'
+                refEl.overscroll.after_x.style.height = refEl.scroll_box.offsetHeight + 'px'
+            }
+            if (refEl.overscroll.before_y) {
+                refEl.overscroll.before_y.style.width = refEl.scroll_box.offsetWidth + 'px'
+                refEl.overscroll.after_y.style.width = refEl.scroll_box.offsetWidth + 'px'
+            }
         }
 
         const options = {
