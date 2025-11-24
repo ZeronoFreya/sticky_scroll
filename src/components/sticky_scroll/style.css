@@ -12,6 +12,7 @@
     left: 0px;
 }
 .scroll_content {
+    min-width: 100%;
     width: fit-content;
     height: fit-content;
     position: absolute;

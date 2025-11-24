@@ -559,6 +559,9 @@ export default {
                 }
             }
 
+            // refEl.scroll_content.style.minWidth = refEl.scroll_box.offsetWidth + 'px'
+            // refEl.scroll_content.style.minHeight = refEl.scroll_box.offsetHeight + 'px'
+
             if (refEl.overscroll.before_x) {
                 refEl.overscroll.before_x.style.height = refEl.scroll_box.offsetHeight + 'px'
                 refEl.overscroll.after_x.style.height = refEl.scroll_box.offsetHeight + 'px'

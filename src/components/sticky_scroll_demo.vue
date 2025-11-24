@@ -56,31 +56,49 @@ export default {
     .scroll_x {
         flex: 1;
         width: 90vw;
+        height: fit-content;
         grid-area: a;
         background: gold;
+        border-radius: 10px;
         li {
             width: 100px;
-            padding: 5px;
+            padding: 0 5px;
+        }
+        .x {
+            padding: 15px;
         }
     }
     .scroll_y {
-        width: 100%;
+        min-width: 0;
+        width: 40vw;
         height: 50vh;
         grid-area: b;
         background: gold;
-        li {
-            width: 100%;
-            padding: 5px;
+        border-radius: 10px;
+        .y {
+            padding: 15px;
         }
     }
     .scroll_xy {
-        width: 100%;
+        min-width: 0;
+        width: 40vw;
         height: 50vh;
         grid-area: c;
         background: gold;
-        li {
-            width: 100%;
+        border-radius: 10px;
+        .xy {
+            padding: 15px;
+        }
+    }
+    li {
+        width: 100%;
+        padding: 5px 0px;
+        white-space: nowrap;
+        list-style: none;
+
+        .content {
             padding: 5px;
+            border-radius: 5px;
         }
     }
 }
