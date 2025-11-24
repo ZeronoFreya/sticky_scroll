@@ -4,12 +4,8 @@
 .scroll_box {
     z-index: 1;
 }
-.sticky_anchor {
-    width: 100%;
-    height: 0px;
-    position: sticky;
-    top: 0px;
-    left: 0px;
+.sticky_scroll_hide {
+    display: none;
 }
 .scroll_content {
     min-width: 100%;
@@ -125,7 +121,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(44, 44, 44, 0.2);
+    /* background: rgba(44, 44, 44, 0.2); */
 }
 .overscroll_before_x {
     left: 0;
@@ -146,7 +142,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(44, 44, 44, 0.2);
+    /* background: rgba(44, 44, 44, 0.2); */
 }
 .overscroll_before_y {
     top: 0;
@@ -157,4 +153,18 @@
     bottom: 0;
     left: 0;
     transform: translateY(100%);
+}
+
+.overscroll_sticky_before_x,
+.overscroll_sticky_after_x {
+    width: 100%;
+    height: 50%;
+    background: #808080;
+}
+
+.overscroll_sticky_before_y,
+.overscroll_sticky_after_y {
+    height: 100%;
+    width: 50%;
+    background: #808080;
 }

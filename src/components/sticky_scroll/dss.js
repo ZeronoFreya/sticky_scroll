@@ -72,6 +72,7 @@ function activeScrollBar(
     scrollDelta,
     scroll = 'y', // 滚动方向, x 或 y
 ) {
+    const { signal } = el._controller
     refEl.scrollbar.scroll_x
     // 滑道
     const track = document.createElement('div')
@@ -144,6 +145,23 @@ function activeScrollBar(
         thumb_mouse_offset = 0
         track.removeEventListener('pointermove', pointermove)
         track.removeEventListener('pointerup', pointerup)
+
+        const { scrollLeft, scrollTop } = refEl.scroll_box
+
+        if (scrollDelta.x != 0) {
+            if (el._timer.x) clearTimeout(el._timer.x)
+            el._timer.x = setTimeout(() => {
+                scrollDelta.x = 0
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+            }, 2000)
+        }
+        if (scrollDelta.y != 0) {
+            if (el._timer.y) clearTimeout(el._timer.y)
+            el._timer.y = setTimeout(() => {
+                scrollDelta.y = 0
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+            }, 2000)
+        }
     }
 
     track.addEventListener(
@@ -165,11 +183,11 @@ function activeScrollBar(
                 refEl.scroll_box[scrollPos] = Math.round(offset * math_temp)
             }
 
-            track.addEventListener('pointerup', pointerup, false)
-            track.addEventListener('pointermove', pointermove, false)
+            track.addEventListener('pointerup', pointerup, { signal })
+            track.addEventListener('pointermove', pointermove, { signal })
             track.setPointerCapture(e.pointerId)
         },
-        false,
+        { signal },
     )
 
     return {
@@ -178,9 +196,17 @@ function activeScrollBar(
     }
 }
 
-function stickyDom(el, refEl) {
+function stickyDom(el, refEl, scroll) {
     refEl.sticky_anchor = document.createElement('div')
     refEl.sticky_anchor.classList.add('sticky_anchor')
+
+    if (scroll == 'x') {
+        refEl.sticky_anchor.style.cssText =
+            'position: sticky;width: 0px;height: 100%;top: 0px;left: 0px;'
+    } else {
+        refEl.sticky_anchor.style.cssText =
+            'position: sticky;width: 100%;height: 0px;top: 0px;left: 0px;'
+    }
 
     refEl.scroll_content =
         el.childElementCount > 1 ? document.createElement('div') : el.firstElementChild
@@ -195,7 +221,7 @@ function stickyDom(el, refEl) {
 function scrollbarDom(el, refEl, scrollDelta, scroll) {
     if (scroll.includes('x')) {
         refEl.scrollbar.scroll_x = document.createElement('div')
-        refEl.scrollbar.scroll_x.classList.add('sticky_scroll_x')
+        refEl.scrollbar.scroll_x.classList.add('sticky_scroll', 'sticky_scroll_x')
         el.appendChild(refEl.scrollbar.scroll_x)
         const { track, thumb } = activeScrollBar(el, refEl, scrollDelta, 'x')
         refEl.scrollbar.track_x = track
@@ -203,7 +229,7 @@ function scrollbarDom(el, refEl, scrollDelta, scroll) {
     }
     if (scroll.includes('y')) {
         refEl.scrollbar.scroll_y = document.createElement('div')
-        refEl.scrollbar.scroll_y.classList.add('sticky_scroll_y')
+        refEl.scrollbar.scroll_y.classList.add('sticky_scroll', 'sticky_scroll_y')
         el.appendChild(refEl.scrollbar.scroll_y)
         const { track, thumb } = activeScrollBar(el, refEl, scrollDelta, 'y')
 
@@ -266,6 +292,9 @@ export default {
             el.style.position = 'relative'
         }
 
+        el._controller = new AbortController()
+        const { signal } = el._controller
+
         const defaultCSB = {
             move: () => {},
             resize: () => {},
@@ -301,7 +330,11 @@ export default {
                 after_y: null,
             },
         }
-        el._refEl = refEl
+
+        el._timer = {
+            x: null,
+            y: null,
+        }
 
         const scrollDelta = {
             x: 0,
@@ -309,12 +342,12 @@ export default {
         }
 
         if (CSB) {
-            stickyDom(el, refEl)
+            stickyDom(el, refEl, scroll)
             refEl.scroll_box = el
             refEl.scroll_box.appendChild(refEl.sticky_anchor)
             spacerDom(refEl, scroll)
         } else {
-            stickyDom(el, refEl)
+            stickyDom(el, refEl, scroll)
             refEl.scroll_box = document.createElement('div')
             refEl.scroll_box.style.cssText = 'width:100%;height:100%;'
             refEl.scroll_box.appendChild(refEl.sticky_anchor)
@@ -338,22 +371,11 @@ export default {
 
         if (scroll == 'x') {
             refEl.scroll_content.style.display = 'flex'
-
-            // // 水平滚动下, 使滚轮支持水平滚动
-            // el._handleWheel = (event) => {
-            //     event.preventDefault() // 阻止默认垂直滚动
-
-            //     const delta = event.deltaY || event.deltaX // 优先垂直滚轮用于水平，deltaX 为自然水平滚轮
-            //     const scrollAmount = delta * 1 // 滚动步长，可调整（像素单位）
-
-            //     refEl.scroll_box.scrollLeft += scrollAmount
-            // }
-            // refEl.scroll_box.addEventListener('wheel', el._handleWheel, { passive: false })
         } else if (scroll == 'y') {
             refEl.scroll_content.style.width = '100%'
         }
 
-        const scrollX = (event, scrollLeft, MaxScrollLeft) => {
+        const scrollX = (event, scrollTop, scrollLeft, MaxScrollLeft) => {
             if (scrollLeft > 0 && scrollLeft < MaxScrollLeft) {
                 scrollDelta.x = 0
                 // translateX = 0
@@ -400,9 +422,14 @@ export default {
                     event.preventDefault()
                 }
             }
+            if (el._timer.x) clearTimeout(el._timer.x)
+            el._timer.x = setTimeout(() => {
+                scrollDelta.x = 0
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+            }, 2000)
             return false
         }
-        const scrollY = (event, scrollTop, MaxScrollTop) => {
+        const scrollY = (event, scrollTop, scrollLeft, MaxScrollTop) => {
             // 还没到顶部也还没到底部：正常滚动，直接返回
             if (scrollTop > 0 && scrollTop < MaxScrollTop) {
                 scrollDelta.y = 0
@@ -450,6 +477,11 @@ export default {
                     event.preventDefault()
                 }
             }
+            if (el._timer.y) clearTimeout(el._timer.y)
+            el._timer.y = setTimeout(() => {
+                scrollDelta.y = 0
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+            }, 2000)
             return false
         }
 
@@ -469,60 +501,55 @@ export default {
                 if (scroll == 'x') {
                     const delta = event.deltaY || event.deltaX
                     refEl.scroll_box.scrollLeft += delta
-                    if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
-                    // if (event.shiftKey) {
-                    //     if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
-                    // } else {
-                    //     if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
-                    // }
+                    if (scrollX(event, scrollTop, scrollLeft, scrollWidth - offsetWidth)) return
                 } else if (scroll == 'y') {
-                    if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
+                    if (scrollY(event, scrollTop, scrollLeft, scrollHeight - offsetHeight)) return
                 } else {
                     if (event.shiftKey) {
-                        if (scrollX(event, scrollLeft, scrollWidth - offsetWidth)) return
+                        if (scrollX(event, scrollTop, scrollLeft, scrollWidth - offsetWidth)) return
                     } else {
-                        if (scrollY(event, scrollTop, scrollHeight - offsetHeight)) return
+                        if (scrollY(event, scrollTop, scrollLeft, scrollHeight - offsetHeight))
+                            return
                     }
                 }
 
                 refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
-                // refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+            },
+            { signal, passive: false },
+        )
 
+        refEl.scroll_box.addEventListener(
+            'scroll',
+            () => {
+                // console.log('scroll')
+
+                const { scrollLeft, scrollTop } = refEl.scroll_box
+                // refEl.scroll_content.style.transform = `translate3d(${-scrollLeft}px, ${-scrollTop}px, 0)`
+
+                const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } =
+                    refEl.scroll_content
+                if (CSB) {
+                    CSB.move(scrollLeft, scrollTop, scrollWidth, scrollHeight)
+                } else {
+                    if (refEl.scrollbar.thumb_x) {
+                        refEl.scrollbar.thumb_x.style.transform = `translate3d(${(refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth}px, 0, 0)`
+                    }
+                    if (refEl.scrollbar.thumb_y) {
+                        refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${(refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight}px, 0)`
+                    }
+                }
+
+                refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+                // translateX = (scrollLeft + scrollDelta.x) * -1
+                // translateY = (scrollTop + scrollDelta.y) * -1
+                // refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
                 // refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
                 // refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
                 // refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
                 // refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
             },
-            { passive: false },
+            { signal },
         )
-
-        refEl.scroll_box.addEventListener('scroll', () => {
-            // console.log('scroll')
-
-            const { scrollLeft, scrollTop } = refEl.scroll_box
-            // refEl.scroll_content.style.transform = `translate3d(${-scrollLeft}px, ${-scrollTop}px, 0)`
-
-            const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
-            if (CSB) {
-                CSB.move(scrollLeft, scrollTop, scrollWidth, scrollHeight)
-            } else {
-                if (refEl.scrollbar.thumb_x) {
-                    refEl.scrollbar.thumb_x.style.transform = `translate3d(${(refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth}px, 0, 0)`
-                }
-                if (refEl.scrollbar.thumb_y) {
-                    refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${(refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight}px, 0)`
-                }
-            }
-
-            refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
-            // translateX = (scrollLeft + scrollDelta.x) * -1
-            // translateY = (scrollTop + scrollDelta.y) * -1
-            // refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
-            // refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
-            // refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
-            // refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
-            // refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
-        })
 
         const _resize = () => {
             const { offsetWidth, offsetHeight } = refEl.scroll_content
@@ -535,6 +562,22 @@ export default {
             }
             const scrollWidth = offsetWidth
             const scrollHeight = offsetHeight
+
+            if (refEl.scrollbar.scroll_x) {
+                if (refEl.scroll_box.offsetWidth == scrollWidth) {
+                    refEl.scrollbar.scroll_x.classList.add('sticky_scroll_hide')
+                } else {
+                    refEl.scrollbar.scroll_x.classList.remove('sticky_scroll_hide')
+                }
+            }
+            if (refEl.scrollbar.scroll_y) {
+                if (refEl.scroll_box.offsetHeight == scrollHeight) {
+                    refEl.scrollbar.scroll_y.classList.add('sticky_scroll_hide')
+                } else {
+                    refEl.scrollbar.scroll_y.classList.remove('sticky_scroll_hide')
+                }
+            }
+
             if (CSB) {
                 CSB.resize(
                     refEl.scroll_box.offsetWidth,
@@ -581,18 +624,17 @@ export default {
             animationFrameId = requestAnimationFrame(() => _resize())
         })
         observer.observe(refEl.scroll_box, options)
-        refEl.scroll_box._sizeObserver = observer
+        el._sizeObserver = observer
     },
     beforeUnmount(el) {
-        const refEl = el._refEl
-        if (el._handleWheel) {
-            refEl.scroll_box.removeEventListener('scroll', el._handleScroll)
-            delete el._handleScroll
-        }
         if (el._sizeObserver) {
             el._sizeObserver.unobserve(el)
             el._sizeObserver.disconnect()
             delete el._sizeObserver
+        }
+        if (el._controller) {
+            el._controller.abort()
+            delete el._controller
         }
     },
 }

@@ -89,6 +89,9 @@ export default {
         .xy {
             padding: 15px;
         }
+        li {
+            width: 100vw;
+        }
     }
     li {
         width: 100%;
