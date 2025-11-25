@@ -39,10 +39,26 @@ function refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta) {
         refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
 
         if (refEl.overscroll.before_x) {
+            if (scrollDelta.x == 0) {
+                refEl.overscroll.before_x.classList.remove('overscroll_show')
+                refEl.overscroll.after_x.classList.remove('overscroll_show')
+            } else {
+                refEl.overscroll.before_x.classList.add('overscroll_show')
+                refEl.overscroll.after_x.classList.add('overscroll_show')
+            }
+
             refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
             refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
         }
         if (refEl.overscroll.before_y) {
+            if (scrollDelta.y == 0) {
+                refEl.overscroll.before_y.classList.remove('overscroll_show')
+                refEl.overscroll.after_y.classList.remove('overscroll_show')
+            } else {
+                refEl.overscroll.before_y.classList.add('overscroll_show')
+                refEl.overscroll.after_y.classList.add('overscroll_show')
+            }
+
             refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
             refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
         }
@@ -265,13 +281,35 @@ function spacerDom(refEl, scroll) {
     }
 }
 
-function overscrollDom(refEl, scroll) {
+function overscrollDom(refEl, scrollDelta, scroll, el) {
     let div = null
     ;['before_' + scroll, 'after_' + scroll].forEach((key) => {
         refEl.overscroll[key] = document.createElement('div')
         div = refEl.overscroll[key]
         div.classList.add('overscroll_' + key)
         div.innerHTML = `<div class="overscroll_sticky_${key}"></div>`
+        div.dataset.scroll = scroll
+        const { signal } = el._controller
+        div.addEventListener(
+            'mouseenter',
+            ({ currentTarget }) => {
+                const scroll = currentTarget.dataset.scroll
+                if (el._timer[scroll]) clearTimeout(el._timer[scroll])
+            },
+            { signal },
+        )
+        div.addEventListener(
+            'mouseleave',
+            ({ currentTarget }) => {
+                const scroll = currentTarget.dataset.scroll
+                el._timer[scroll] = setTimeout(() => {
+                    const { scrollLeft, scrollTop } = refEl.scroll_box
+                    scrollDelta[scroll] = 0
+                    refElTransform(el, refEl, scrollTop, scrollLeft, scrollDelta)
+                }, 2000)
+            },
+            { signal },
+        )
         refEl.scroll_content.appendChild(div)
     })
 }
@@ -359,13 +397,13 @@ export default {
                 const key = reverseX ? 'top' : 'bottom'
                 refEl.scrollbar.scroll_x.style[key] = offsetY
 
-                overscrollDom(refEl, 'x')
+                overscrollDom(refEl, scrollDelta, 'x', el)
             }
             if (scroll.includes('y')) {
                 const key = reverseY ? 'left' : 'right'
                 refEl.scrollbar.scroll_y.style[key] = offsetX
 
-                overscrollDom(refEl, 'y')
+                overscrollDom(refEl, scrollDelta, 'y', el)
             }
         }
 
