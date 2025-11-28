@@ -23,20 +23,59 @@ export default {
 <template lang="pug">
 .box
     .scroll_x
-        div.x(v-scroll="{scroll:'x'}")
-            li(v-for="i in liData", :key="i")
-                .content {{i}}
+        //- div.x(v-scroll="{scroll:'x'}")
+        //-     li(v-for="i in liData", :key="i")
+        //-         .content {{i}}
+        StickyScroll.x(scroll="x")
+            .xxxx
+                li(v-for="i in liData", :key="i")
+                    .content {{i}}
     .scroll_y
-        div.y(v-scroll="{scroll:'y'}")
-            li(v-for="i in liData", :key="i")
-                .content {{i}}
+        //- div.y(v-scroll="{scroll:'y'}")
+        //-     li(v-for="i in liData", :key="i")
+        //-         .content {{i}}
+        StickyScroll.y(scroll="y")
+            .yyyy
+                li(v-for="i in liData", :key="i")
+                    .content {{i}}
     .scroll_xy
-        div.xy(v-scroll="{scroll:'xy'}")
-            li(v-for="i in liData", :key="i")
-                .content {{i}}
+        //- div.xy(v-scroll="{scroll:'xy'}")
+        //-     li(v-for="i in liData", :key="i")
+        //-         .content {{i}}
+        StickyScroll.xy(scroll="xy")
+            .xyxy
+                li(v-for="i in liData", :key="i")
+                    .content {{i}}
+            template(v-slot:before_y)
+                .before_y before_y
+            template(v-slot:after_y)
+                .after_y after_y
 </template>
 
 <style lang="scss">
+.xy {
+    padding: 15px;
+}
+.xxxx {
+    display: flex;
+}
+.xyxy {
+    // padding: 5px;
+    // background: white;
+    li {
+        width: 100vw;
+    }
+}
+.scroll_box {
+    border-radius: 12px;
+}
+.before_y,
+.after_y {
+    width: 60%;
+    height: 100px;
+    background: red;
+    border-radius: 12px;
+}
 .box {
     width: 100vw;
     height: 100vh;
@@ -86,15 +125,9 @@ export default {
         grid-area: c;
         background: gold;
         border-radius: 10px;
-        .xy {
-            padding: 15px;
-        }
-        li {
-            width: 100vw;
-        }
     }
     li {
-        width: 100%;
+        // width: 100%;
         padding: 5px 0px;
         white-space: nowrap;
         list-style: none;
