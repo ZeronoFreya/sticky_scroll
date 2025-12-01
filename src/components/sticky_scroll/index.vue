@@ -10,7 +10,9 @@ import {
     onUpdated,
     onBeforeUnmount,
 } from 'vue'
-// import useScrollContent from './use_scroll_content'
+
+import useScrollbar from './use_scrollbar'
+import useOverscroll from './use_overscroll'
 
 // 辅助函数：检查纯对象（排除数组、null 等）
 const isPlainObject = (val) => {
@@ -88,6 +90,12 @@ export default {
         const showX = computed(() => props.scroll.includes('x'))
         const showY = computed(() => props.scroll.includes('y'))
 
+        const overscrollStateX = ref(false)
+        const overscrollStateY = ref(false)
+
+        const scrollStateX = ref(false)
+        const scrollStateY = ref(false)
+
         const timer = {
             x: null,
             y: null,
@@ -98,7 +106,10 @@ export default {
             y: 0,
         }
 
-        // const { handleSlot } = useScrollContent(refEl)
+        const animeId = {
+            resize: null,
+            transform: null,
+        }
 
         const defaultCSB = {
             move: () => {},
@@ -111,43 +122,38 @@ export default {
               ? defaultCSB
               : false
 
-        let animationFrameIdTransform = null
         const refElTransform = () => {
-            if (animationFrameIdTransform != null) {
-                cancelAnimationFrame(animationFrameIdTransform)
+            if (animeId.transform != null) {
+                cancelAnimationFrame(animeId.transform)
             }
-            animationFrameIdTransform = requestAnimationFrame(() => {
+            animeId.transform = requestAnimationFrame(() => {
                 const { scrollLeft, scrollTop } = refEl.scroll_box
-                const translateX = (scrollLeft + scrollDelta.x) * -1
-                const translateY = (scrollTop + scrollDelta.y) * -1
-                refEl.scroll_content.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`
+                const translateX = scrollLeft + scrollDelta.x
+                const translateY = scrollTop + scrollDelta.y
+                refEl.scroll_content.style.transform = `translate3d(${translateX * -1}px, ${translateY * -1}px, 0)`
 
                 if (refEl.overscroll.before_x) {
-                    if (scrollDelta.x == 0) {
-                        refEl.overscroll.before_x.classList.remove('overscroll_show')
-                        refEl.overscroll.after_x.classList.remove('overscroll_show')
-                    } else {
-                        refEl.overscroll.before_x.classList.add('overscroll_show')
-                        refEl.overscroll.after_x.classList.add('overscroll_show')
-                    }
-
-                    refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${scrollTop + scrollDelta.y}px, 0)`
-                    refEl.overscroll.after_x.style.transform = `translate3d(100%, ${scrollTop + scrollDelta.y}px, 0)`
+                    overscrollStateX.value = scrollDelta.x == 0 ? false : true
+                    refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${translateY}px, 0)`
+                    refEl.overscroll.after_x.style.transform = `translate3d(100%, ${translateY}px, 0)`
                 }
                 if (refEl.overscroll.before_y) {
-                    if (scrollDelta.y == 0) {
-                        refEl.overscroll.before_y.classList.remove('overscroll_show')
-                        refEl.overscroll.after_y.classList.remove('overscroll_show')
-                    } else {
-                        refEl.overscroll.before_y.classList.add('overscroll_show')
-                        refEl.overscroll.after_y.classList.add('overscroll_show')
-                    }
-
-                    refEl.overscroll.before_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, -100%, 0)`
-                    refEl.overscroll.after_y.style.transform = `translate3d(${scrollLeft + scrollDelta.x}px, 100%, 0)`
+                    overscrollStateY.value = scrollDelta.y == 0 ? false : true
+                    refEl.overscroll.before_y.style.transform = `translate3d(${translateX}px, -100%, 0)`
+                    refEl.overscroll.after_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
                 }
             })
         }
+
+        const { track_down } = useScrollbar(refEl, signal, scrollDelta, timer, refElTransform)
+        const { mouseenter, mouseleave } = useOverscroll(
+            refEl,
+            signal,
+            scrollDelta,
+            timer,
+            refElTransform,
+        )
+
         const _resize = () => {
             const { offsetWidth, offsetHeight } = refEl.scroll_content
             if (refEl.spacer_x) {
@@ -160,20 +166,15 @@ export default {
             const scrollWidth = offsetWidth
             const scrollHeight = offsetHeight
 
-            if (refEl.scrollbar.scroll_x) {
-                if (refEl.scroll_box.offsetWidth == scrollWidth) {
-                    refEl.scrollbar.scroll_x.classList.add('sticky_scroll_hide')
-                } else {
-                    refEl.scrollbar.scroll_x.classList.remove('sticky_scroll_hide')
-                }
-            }
-            if (refEl.scrollbar.scroll_y) {
-                if (refEl.scroll_box.offsetHeight == scrollHeight) {
-                    refEl.scrollbar.scroll_y.classList.add('sticky_scroll_hide')
-                } else {
-                    refEl.scrollbar.scroll_y.classList.remove('sticky_scroll_hide')
-                }
-            }
+            scrollStateX.value =
+                refEl.scrollbar.scroll_x && scrollWidth <= refEl.scroll_box.offsetWidth
+                    ? true
+                    : false
+
+            scrollStateY.value =
+                refEl.scrollbar.scroll_y && scrollHeight <= refEl.scroll_box.offsetHeight
+                    ? true
+                    : false
 
             if (CSB) {
                 CSB.resize(
@@ -209,108 +210,20 @@ export default {
             }
         }
 
-        const options = {
-            box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
-        }
-        let animationFrameId = null
-        const observer = new ResizeObserver((entries) => {
-            cancelAnimationFrame(animationFrameId)
-            animationFrameId = requestAnimationFrame(() => _resize())
+        const sizeObserver = new ResizeObserver((entries) => {
+            if (animeId.resize) {
+                cancelAnimationFrame(animeId.resize)
+            }
+            animeId.resize = requestAnimationFrame(() => _resize())
         })
 
-        let math_temp = 0
-        let thumbOffset = 0
-        let thumb_mouse_offset = 0
-
-        const track_move = (e) => {
-            const scroll = e.currentTarget.dataset.scroll
-            const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
-            let offset = (scroll == 'x' ? e.offsetX : e.offsetY) - thumb_mouse_offset
-
-            let s = Math.round(offset * math_temp)
-
-            const { offsetWidth, offsetHeight } = refEl.scroll_box
-            const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
-
-            const MaxScroll =
-                scroll == 'x' ? scrollWidth - offsetWidth : scrollHeight - offsetHeight
-
-            if (s > 0 && s < MaxScroll) {
-                refEl.scroll_box[scrollPos] = s
-                return
-            }
-
-            if (scroll == 'x') {
-                if (s < 0) {
-                    scrollDelta.x = Math.max(s, -refEl.overscroll.before_x.offsetWidth)
-                } else {
-                    scrollDelta.x = Math.min(s, refEl.overscroll.after_x.offsetWidth)
-                }
-            } else {
-                if (s < 0) {
-                    scrollDelta.y = Math.max(s, -refEl.overscroll.before_y.offsetHeight)
-                } else {
-                    scrollDelta.y = Math.min(s, refEl.overscroll.after_y.offsetHeight)
-                }
-            }
-
-            // aaa(scrollLeft, scrollTop)
-            refElTransform()
-        }
-
-        const track_up = (e) => {
-            const track = e.currentTarget
-            track.classList.remove('track_down')
-            math_temp = 0
-            thumb_mouse_offset = 0
-            track.removeEventListener('pointermove', track_move)
-            track.removeEventListener('pointerup', track_up)
-
-            if (scrollDelta.x != 0) {
-                if (timer.x) clearTimeout(timer.x)
-                timer.x = setTimeout(() => {
-                    scrollDelta.x = 0
-                    refElTransform()
-                }, 2000)
-            }
-            if (scrollDelta.y != 0) {
-                if (timer.y) clearTimeout(timer.y)
-                timer.y = setTimeout(() => {
-                    scrollDelta.y = 0
-                    refElTransform()
-                }, 2000)
-            }
-        }
-
-        const track_down = (e) => {
-            const track = e.currentTarget
-            track.classList.add('track_down')
-            // scrollDelta[scroll] = 0
-            const scroll = track.dataset.scroll
-            const offsetSize = scroll == 'x' ? 'offsetWidth' : 'offsetHeight'
-            const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
-            let offset = scroll == 'x' ? e.offsetX : e.offsetY
-            math_temp = refEl.scroll_content[offsetSize] / track[offsetSize]
-
-            const thumb = refEl.scrollbar['thumb_' + scroll]
-
-            if (e.target === thumb) {
-                // 拖拽 thumb: 使用点击的位置
-                thumb_mouse_offset = offset
-                offset = thumbOffset
-            } else {
-                // 在 track 拖拽: 使用 thumb 的中心
-                thumb_mouse_offset = thumb[offsetSize] / 2
-                offset -= thumb_mouse_offset
-                refEl.scroll_box[scrollPos] = Math.round(offset * math_temp)
-            }
-
-            track.addEventListener('pointerup', track_up)
-            track.addEventListener('pointermove', track_move)
-            track.setPointerCapture(e.pointerId)
-        }
-
         const scrollX = (event, MaxScrollLeft) => {
+            if (MaxScrollLeft < 0) {
+                // scrollWidth <= offsetWidth
+                event.preventDefault()
+                scrollDelta.x = 0
+                return true
+            }
             const scrollLeft = refEl.scroll_box.scrollLeft
             if (scrollLeft > 0 && scrollLeft < MaxScrollLeft) {
                 scrollDelta.x = 0
@@ -367,6 +280,12 @@ export default {
         }
 
         const scrollY = (event, MaxScrollTop) => {
+            if (MaxScrollTop < 0) {
+                // scrollHeight <= offsetHeight
+                event.preventDefault()
+                scrollDelta.y = 0
+                return true
+            }
             const scrollTop = refEl.scroll_box.scrollTop
             // 还没到顶部也还没到底部：正常滚动，直接返回
             if (scrollTop > 0 && scrollTop < MaxScrollTop) {
@@ -426,12 +345,12 @@ export default {
         const mousewheel = (e) => {
             // event.deltaY < 0   // 滚动条上｜左, 内容下｜右
             // event.deltaY > 0   // 滚动条下｜右, 内容上｜左
-
             const { offsetWidth, offsetHeight } = refEl.scroll_box
 
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
 
             if (props.scroll == 'x') {
+                e.preventDefault()
                 const delta = e.deltaY || e.deltaX
                 refEl.scroll_box.scrollLeft += delta
                 if (scrollX(e, scrollWidth - offsetWidth)) return
@@ -466,23 +385,13 @@ export default {
             refElTransform()
         }
 
-        const mouseenter = ({ currentTarget }) => {
-            const scroll = currentTarget.dataset.scroll
-            if (timer[scroll]) clearTimeout(timer[scroll])
-        }
-        const mouseleave = ({ currentTarget }) => {
-            const scroll = currentTarget.dataset.scroll
-            timer[scroll] = setTimeout(() => {
-                scrollDelta[scroll] = 0
-                refElTransform()
-            }, 2000)
-        }
-
         // 生命周期
         onMounted(() => {
-            observer.observe(refEl.scroll_box, options)
+            sizeObserver.observe(refEl.scroll_box, {
+                box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
+            })
             // handleSlot()
-            refEl.scroll_box.addEventListener('wheel', mousewheel, { passive: false })
+            refEl.scroll_box.addEventListener('wheel', mousewheel, { signal, passive: false })
 
             if (CSB) {
                 // stickyDom(el, refEl, scroll)
@@ -530,7 +439,15 @@ export default {
             }
         })
         onUpdated(() => {
-            nextTick(handleSlot)
+            // nextTick(handleSlot)
+        })
+        onBeforeUnmount(() => {
+            controller.abort()
+
+            if (sizeObserver) {
+                sizeObserver.unobserve(refEl.scroll_box)
+                sizeObserver.disconnect()
+            }
         })
 
         return {
@@ -543,6 +460,10 @@ export default {
             mousescroll,
             mouseenter,
             mouseleave,
+            overscrollStateX,
+            overscrollStateY,
+            scrollStateX,
+            scrollStateY,
         }
     },
 }

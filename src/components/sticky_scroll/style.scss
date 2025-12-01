@@ -22,6 +22,7 @@
         top: 0;
         left: 0;
         transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
+        will-change: transform;
     }
 
     .sticky_scroll_x {

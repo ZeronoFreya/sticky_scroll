@@ -4,35 +4,55 @@
             .scroll_content(:ref="setRef('scroll_content')")
                 slot
                 template(v-if="showX")
-                    .overscroll_before_x(data-scroll="x", :ref="setRef('overscroll.before_x')", 
+                    .overscroll_before_x(
+                        data-scroll="x", 
+                        :class="{overscroll_show: overscrollStateX}",
+                        :ref="setRef('overscroll.before_x')", 
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="before_x")
                             span.overscroll_sticky_before_x Start
-                    .overscroll_after_x(data-scroll="x", :ref="setRef('overscroll.after_x')",
+                    .overscroll_after_x(
+                        data-scroll="x", 
+                        :class="{overscroll_show: overscrollStateX}",
+                        :ref="setRef('overscroll.after_x')",
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="after_x")
                             span.overscroll_sticky_after_x End
                 template(v-if="showY")
-                    .overscroll_before_y(data-scroll="y", :ref="setRef('overscroll.before_y')",
+                    .overscroll_before_y(
+                        data-scroll="y", 
+                        :class="{overscroll_show: overscrollStateY}",
+                        :ref="setRef('overscroll.before_y')",
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="before_y")
                             span.overscroll_sticky_before_y Start
-                    .overscroll_after_y(data-scroll="y", :ref="setRef('overscroll.after_y')",
+                    .overscroll_after_y(
+                        data-scroll="y", 
+                        :class="{overscroll_show: overscrollStateY}",
+                        :ref="setRef('overscroll.after_y')",
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="after_y")  
                             span.overscroll_sticky_after_y  End    
         .spacer(v-if="showX", :ref="setRef('spacer_x')")
         .spacer(v-if="showY || scroll == 'x'", :ref="setRef('spacer_y')")
-    .sticky_scroll.sticky_scroll_x(v-if="showX", :ref="setRef('scrollbar.scroll_x')")
+    .sticky_scroll.sticky_scroll_x(
+        v-if="showX", 
+        :ref="setRef('scrollbar.scroll_x')",
+        :class="{sticky_scroll_hide: scrollStateX}"
+    )
         .track_x(:ref="setRef('scrollbar.track_x')", data-scroll="x", @pointerdown.stop="track_down")
             .track_view_x
             .thumb_x(:ref="setRef('scrollbar.thumb_x')")
                 .thumb_view_x
-    .sticky_scroll.sticky_scroll_y(v-if="showY", :ref="setRef('scrollbar.scroll_y')")
+    .sticky_scroll.sticky_scroll_y(
+        v-if="showY", 
+        :ref="setRef('scrollbar.scroll_y')",
+        :class="{sticky_scroll_hide: scrollStateY}"
+    )
         .track_y(:ref="setRef('scrollbar.track_y')", data-scroll="y", @pointerdown.stop="track_down")
             .track_view_y
             .thumb_y(:ref="setRef('scrollbar.thumb_y')")

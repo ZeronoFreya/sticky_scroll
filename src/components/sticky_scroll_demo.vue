@@ -11,7 +11,7 @@ export default {
     //     },
     // },
     setup() {
-        const liData = ref([...Array(30).keys()])
+        const liData = ref([...Array(35).keys()])
 
         onMounted(() => {})
 
@@ -50,9 +50,20 @@ export default {
                 .before_y before_y
             template(v-slot:after_y)
                 .after_y after_y
+.hhh
+    StickyScroll.x(scroll="x")
+        li(v-for="i in liData", :key="i")
+            .content {{i}}
+    StickyScroll.y(scroll="y")
+        li(v-for="i in liData", :key="i")
+            .content {{i}}
 </template>
 
 <style lang="scss">
+li {
+    list-style: none;
+    color: #202020;
+}
 .xy {
     padding: 15px;
 }
@@ -66,6 +77,39 @@ export default {
         width: 100vw;
     }
 }
+.hhh {
+    border: 1px solid red;
+    width: 80vw;
+    height: 60vh;
+    margin-bottom: 30px;
+    .x {
+        background: #9900ff;
+        height: fit-content;
+        padding-bottom: 10px;
+        li {
+            width: 100px;
+            padding: 5px;
+            .content {
+                padding: 5px;
+                background: yellowgreen;
+                border-radius: 6px;
+            }
+        }
+    }
+    .y {
+        max-height: 30vh;
+        background-color: #008cff;
+        padding-right: 10px;
+        li {
+            padding: 5px;
+            .content {
+                padding: 5px;
+                background: yellowgreen;
+                border-radius: 6px;
+            }
+        }
+    }
+}
 .scroll_box {
     border-radius: 12px;
 }
@@ -75,6 +119,9 @@ export default {
     height: 100px;
     background: red;
     border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 .box {
     width: 100vw;
