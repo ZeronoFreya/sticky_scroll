@@ -25,7 +25,7 @@ export default {
         scroll: {
             // 滚动方式
             type: String,
-            default: 'y', // x, y, xy
+            default: 'xy', // x, y, xy
         },
         reverseX: {
             // 水平滚动条的位置设置在顶部
@@ -47,10 +47,25 @@ export default {
             type: String,
             default: '0px',
         },
+        // customScrollBar: {
+        //     // 自定义滚动条
+        //     type: Object,
+        //     default: null,
+        // },
         customScrollBar: {
             // 自定义滚动条
-            type: Object,
-            default: null,
+            type: Boolean,
+            default: false,
+        },
+        overscrollX: {
+            // 显示水平过界
+            type: Boolean,
+            default: true,
+        },
+        overscrollY: {
+            // 显示垂直过界
+            type: Boolean,
+            default: true,
         },
     },
     setup(props) {
@@ -96,16 +111,6 @@ export default {
         const scrollStateX = ref(false)
         const scrollStateY = ref(false)
 
-        const timer = {
-            x: null,
-            y: null,
-        }
-
-        const scrollDelta = {
-            x: 0,
-            y: 0,
-        }
-
         const animeId = {
             resize: null,
             transform: null,
@@ -116,11 +121,12 @@ export default {
             resize: () => {},
         }
 
-        const CSB = isPlainObject(props.customScrollBar)
-            ? { ...defaultCSB, ...props.customScrollBar }
-            : Boolean(props.customScrollBar)
-              ? defaultCSB
-              : false
+        // const CSB = isPlainObject(props.customScrollBar)
+        //     ? { ...defaultCSB, ...props.customScrollBar }
+        //     : Boolean(props.customScrollBar)
+        //       ? defaultCSB
+        //       : false
+        const CSB = false
 
         const refElTransform = () => {
             if (animeId.transform != null) {
@@ -145,21 +151,17 @@ export default {
             })
         }
 
-        const { track_down } = useScrollbar(refEl, signal, scrollDelta, timer, refElTransform)
-        const { mouseenter, mouseleave } = useOverscroll(
+        const { updateTime, mouseenter, mouseleave, scrollDelta, overX, overY } = useOverscroll(
             refEl,
-            signal,
-            scrollDelta,
-            timer,
             refElTransform,
         )
+        const { track_down } = useScrollbar(refEl, signal, scrollDelta, updateTime, refElTransform)
 
         const _resize = () => {
             const { offsetWidth, offsetHeight } = refEl.scroll_content
             if (refEl.spacer_x) {
                 refEl.spacer_x.style.width = offsetWidth + 'px'
             }
-
             if (refEl.spacer_y) {
                 refEl.spacer_y.style.height = offsetHeight + 'px'
             }
@@ -184,19 +186,22 @@ export default {
                     scrollHeight,
                 )
             } else {
-                // console.log(refEl.scrollbar)
-
                 if (refEl.scrollbar.thumb_x) {
-                    refEl.scrollbar.thumb_x.style.width =
-                        (refEl.scrollbar.track_x.offsetWidth * refEl.scroll_box.offsetWidth) /
-                            scrollWidth +
-                        'px'
+                    const x =
+                        scrollWidth > 0
+                            ? (refEl.scrollbar.track_x.offsetWidth * refEl.scroll_box.offsetWidth) /
+                              scrollWidth
+                            : 0
+                    refEl.scrollbar.thumb_x.style.width = x + 'px'
                 }
                 if (refEl.scrollbar.thumb_y) {
-                    refEl.scrollbar.thumb_y.style.height =
-                        (refEl.scrollbar.track_y.offsetHeight * refEl.scroll_box.offsetHeight) /
-                            scrollHeight +
-                        'px'
+                    const y =
+                        scrollHeight > 0
+                            ? (refEl.scrollbar.track_y.offsetHeight *
+                                  refEl.scroll_box.offsetHeight) /
+                              scrollHeight
+                            : 0
+                    refEl.scrollbar.thumb_y.style.height = y + 'px'
                 }
             }
 
@@ -219,7 +224,6 @@ export default {
 
         const scrollX = (event, MaxScrollLeft) => {
             if (MaxScrollLeft < 0) {
-                // scrollWidth <= offsetWidth
                 event.preventDefault()
                 scrollDelta.x = 0
                 return true
@@ -227,61 +231,14 @@ export default {
             const scrollLeft = refEl.scroll_box.scrollLeft
             if (scrollLeft > 0 && scrollLeft < MaxScrollLeft) {
                 scrollDelta.x = 0
-                // translateX = 0
                 return true
             }
-            if (scrollLeft <= 0) {
-                // 左边界
-                if (event.deltaY < 0) {
-                    // 左滚 → 继续拉伸（负）
-                    scrollDelta.x += event.deltaY
-                    scrollDelta.x = Math.max(scrollDelta.x, -refEl.overscroll.before_x.offsetWidth)
-                    event.preventDefault()
-                } else {
-                    // 右滚 → 消耗或吸附
-                    if (scrollDelta.x < 0) {
-                        // 只有已经拉伸了才处理
-                        event.preventDefault()
-                        if (-scrollDelta.x < event.deltaY) {
-                            // 可滚动空间不足deltaY
-                            scrollDelta.x = 0
-                        } else {
-                            scrollDelta.x += event.deltaY // deltaY 为正
-                            scrollDelta.x = Math.min(scrollDelta.x, 0)
-                        }
-                    }
-                }
-            } else {
-                // 右边界
-                if (event.deltaY < 0) {
-                    // 左滚 → 消耗或吸附
-                    if (scrollDelta.x > 0) {
-                        event.preventDefault()
-                        if (scrollDelta.x < -event.deltaY) {
-                            scrollDelta.x = 0
-                        } else {
-                            scrollDelta.x += event.deltaY
-                            scrollDelta.x = Math.max(scrollDelta.x, 0)
-                        }
-                    }
-                } else {
-                    // 右滚 → 继续拉伸（正）
-                    scrollDelta.x += event.deltaY
-                    scrollDelta.x = Math.min(scrollDelta.x, refEl.overscroll.after_x.offsetWidth)
-                    event.preventDefault()
-                }
-            }
-            if (timer.x) clearTimeout(timer.x)
-            timer.x = setTimeout(() => {
-                scrollDelta.x = 0
-                refElTransform()
-            }, 2000)
+            overX(event, scrollLeft)
             return false
         }
 
         const scrollY = (event, MaxScrollTop) => {
             if (MaxScrollTop < 0) {
-                // scrollHeight <= offsetHeight
                 event.preventDefault()
                 scrollDelta.y = 0
                 return true
@@ -290,55 +247,9 @@ export default {
             // 还没到顶部也还没到底部：正常滚动，直接返回
             if (scrollTop > 0 && scrollTop < MaxScrollTop) {
                 scrollDelta.y = 0
-                // translateY = 0
                 return true
             }
-            if (scrollTop <= 0) {
-                // 上边界
-                if (event.deltaY < 0) {
-                    // 上滚 → 继续拉伸（负）
-                    scrollDelta.y += event.deltaY
-                    scrollDelta.y = Math.max(scrollDelta.y, -refEl.overscroll.before_y.offsetHeight)
-                    event.preventDefault()
-                } else {
-                    // 下滚 → 消耗或吸附
-                    if (scrollDelta.y < 0) {
-                        // 只有已经拉伸了才处理
-                        event.preventDefault()
-                        if (-scrollDelta.y < event.deltaY) {
-                            // 可滚动空间不足deltaY
-                            scrollDelta.y = 0
-                        } else {
-                            scrollDelta.y += event.deltaY // deltaY 为正
-                            scrollDelta.y = Math.min(scrollDelta.y, 0)
-                        }
-                    }
-                }
-            } else {
-                // 下边界
-                if (event.deltaY < 0) {
-                    // 上滚 → 消耗或吸附
-                    if (scrollDelta.y > 0) {
-                        event.preventDefault()
-                        if (scrollDelta.y < -event.deltaY) {
-                            scrollDelta.y = 0
-                        } else {
-                            scrollDelta.y += event.deltaY
-                            scrollDelta.y = Math.max(scrollDelta.y, 0)
-                        }
-                    }
-                } else {
-                    // 下滚 → 继续拉伸（正）
-                    scrollDelta.y += event.deltaY
-                    scrollDelta.y = Math.min(scrollDelta.y, refEl.overscroll.after_y.offsetHeight)
-                    event.preventDefault()
-                }
-            }
-            if (timer.y) clearTimeout(timer.y)
-            timer.y = setTimeout(() => {
-                scrollDelta.y = 0
-                refElTransform()
-            }, 2000)
+            overY(event, scrollTop)
             return false
         }
 
@@ -346,7 +257,6 @@ export default {
             // event.deltaY < 0   // 滚动条上｜左, 内容下｜右
             // event.deltaY > 0   // 滚动条下｜右, 内容上｜左
             const { offsetWidth, offsetHeight } = refEl.scroll_box
-
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
 
             if (props.scroll == 'x') {
@@ -367,18 +277,25 @@ export default {
             refElTransform()
         }
 
-        const mousescroll = () => {
-            // refEl.scroll_content.style.transform = `translate3d(${-scrollLeft}px, ${-scrollTop}px, 0)`
+        const mousescroll = (e) => {
             const { scrollLeft, scrollTop } = refEl.scroll_box
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
             if (CSB) {
                 CSB.move(scrollLeft, scrollTop, scrollWidth, scrollHeight)
             } else {
                 if (refEl.scrollbar.thumb_x) {
-                    refEl.scrollbar.thumb_x.style.transform = `translate3d(${(refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth}px, 0, 0)`
+                    const x =
+                        scrollWidth > 0
+                            ? (refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth
+                            : 0
+                    refEl.scrollbar.thumb_x.style.transform = `translate3d(${x}px, 0, 0)`
                 }
                 if (refEl.scrollbar.thumb_y) {
-                    refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${(refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight}px, 0)`
+                    const y =
+                        scrollHeight > 0
+                            ? (refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight
+                            : 0
+                    refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${y}px, 0)`
                 }
             }
 
@@ -390,7 +307,6 @@ export default {
             sizeObserver.observe(refEl.scroll_box, {
                 box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
             })
-            // handleSlot()
             refEl.scroll_box.addEventListener('wheel', mousewheel, { signal, passive: false })
 
             if (CSB) {
@@ -400,6 +316,7 @@ export default {
                 // spacerDom(refEl, scroll)
             } else {
                 if (props.scroll == 'x') {
+                    // 水平滚动
                     refEl.sticky_anchor.style.width = '0px'
                     refEl.sticky_anchor.style.height = '100%'
 
@@ -417,24 +334,28 @@ export default {
                     } else {
                         refEl.scroll_content.style.display = 'flex'
                     }
-                } else if (props.scroll == 'y') {
-                    refEl.scroll_content.style.width = '100%'
-                    refEl.sticky_anchor.style.width = '100%'
-                    refEl.sticky_anchor.style.height = '0px'
                 } else {
+                    if (props.scroll == 'y') {
+                        refEl.scroll_content.style.width = '100%'
+                    }
                     refEl.sticky_anchor.style.width = '100%'
                     refEl.sticky_anchor.style.height = '0px'
                 }
+
                 refEl.scroll_box.style.overflow = 'hidden'
                 if (showX.value) {
                     refEl.scroll_box.style.overflowX = 'auto'
-                    const key = props.reverseX ? 'top' : 'bottom'
-                    refEl.scrollbar.scroll_x.style[key] = props.offsetX
+                    if (refEl.scrollbar.scroll_x) {
+                        const key = props.reverseX ? 'top' : 'bottom'
+                        refEl.scrollbar.scroll_x.style[key] = props.offsetX
+                    }
                 }
                 if (showY.value) {
                     refEl.scroll_box.style.overflowY = 'auto'
-                    const key = props.reverseY ? 'left' : 'right'
-                    refEl.scrollbar.scroll_y.style[key] = props.offsetY
+                    if (refEl.scrollbar.scroll_y) {
+                        const key = props.reverseY ? 'left' : 'right'
+                        refEl.scrollbar.scroll_y.style[key] = props.offsetY
+                    }
                 }
             }
         })

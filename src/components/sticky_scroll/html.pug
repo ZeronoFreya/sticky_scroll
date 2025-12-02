@@ -3,7 +3,7 @@
         .sticky_anchor(:ref="setRef('sticky_anchor')")
             .scroll_content(:ref="setRef('scroll_content')")
                 slot
-                template(v-if="showX")
+                template(v-if="showX && overscrollX")
                     .overscroll_before_x(
                         data-scroll="x", 
                         :class="{overscroll_show: overscrollStateX}",
@@ -20,7 +20,7 @@
                     )
                         slot(name="after_x")
                             span.overscroll_sticky_after_x End
-                template(v-if="showY")
+                template(v-if="showY && overscrollY")
                     .overscroll_before_y(
                         data-scroll="y", 
                         :class="{overscroll_show: overscrollStateY}",
@@ -40,7 +40,7 @@
         .spacer(v-if="showX", :ref="setRef('spacer_x')")
         .spacer(v-if="showY || scroll == 'x'", :ref="setRef('spacer_y')")
     .sticky_scroll.sticky_scroll_x(
-        v-if="showX", 
+        v-if="!customScrollBar && showX", 
         :ref="setRef('scrollbar.scroll_x')",
         :class="{sticky_scroll_hide: scrollStateX}"
     )
@@ -49,7 +49,7 @@
             .thumb_x(:ref="setRef('scrollbar.thumb_x')")
                 .thumb_view_x
     .sticky_scroll.sticky_scroll_y(
-        v-if="showY", 
+        v-if="!customScrollBar && showY", 
         :ref="setRef('scrollbar.scroll_y')",
         :class="{sticky_scroll_hide: scrollStateY}"
     )

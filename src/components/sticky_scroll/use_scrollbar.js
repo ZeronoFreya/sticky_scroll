@@ -1,4 +1,4 @@
-export default function useScrollbar(refEl, signal, scrollDelta, timer, refElTransform) {
+export default function useScrollbar(refEl, signal, scrollDelta, updateTime, refElTransform) {
     let math_temp = 0
     let thumb_mouse_offset = 0
 
@@ -46,18 +46,10 @@ export default function useScrollbar(refEl, signal, scrollDelta, timer, refElTra
         track.removeEventListener('pointerup', track_up)
 
         if (scrollDelta.x != 0) {
-            if (timer.x) clearTimeout(timer.x)
-            timer.x = setTimeout(() => {
-                scrollDelta.x = 0
-                refElTransform()
-            }, 2000)
+            updateTime('x')
         }
         if (scrollDelta.y != 0) {
-            if (timer.y) clearTimeout(timer.y)
-            timer.y = setTimeout(() => {
-                scrollDelta.y = 0
-                refElTransform()
-            }, 2000)
+            updateTime('y')
         }
     }
 

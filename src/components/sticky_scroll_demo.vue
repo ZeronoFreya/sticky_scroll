@@ -42,7 +42,7 @@ export default {
         //- div.xy(v-scroll="{scroll:'xy'}")
         //-     li(v-for="i in liData", :key="i")
         //-         .content {{i}}
-        StickyScroll.xy(scroll="xy")
+        StickyScroll.xy(scroll="xy", customScrollBar)
             .xyxy
                 li(v-for="i in liData", :key="i")
                     .content {{i}}
