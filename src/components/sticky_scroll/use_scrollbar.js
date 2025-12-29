@@ -33,7 +33,6 @@ export default function useScrollbar(refEl, signal, scrollDelta, updateTime, ref
             }
         }
 
-        // aaa(scrollLeft, scrollTop)
         refElTransform()
     }
 
