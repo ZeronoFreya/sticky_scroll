@@ -15,7 +15,7 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="before_x")
-                            span.overscroll_sticky_before_x Start
+                            span.overscroll_sticky_before_x 前
                     .overscroll_after_x(
                         data-scroll="x", 
                         :class="{overscroll_show: overscrollStateX}",
@@ -23,7 +23,7 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="after_x")
-                            span.overscroll_sticky_after_x End
+                            span.overscroll_sticky_after_x 后
                 template(v-if="showY && overscrollY")
                     .overscroll_before_y(
                         data-scroll="y", 
@@ -32,7 +32,7 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="before_y")
-                            span.overscroll_sticky_before_y Start
+                            span.overscroll_sticky_before_y 到顶了
                     .overscroll_after_y(
                         data-scroll="y", 
                         :class="{overscroll_show: overscrollStateY}",
@@ -40,7 +40,7 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="after_y")  
-                            span.overscroll_sticky_after_y  End    
+                            span.overscroll_sticky_after_y  到底了    
         .spacer(v-if="showX", :ref="setRef('spacer_x')")
         .spacer(v-if="showY || scroll == 'x'", :ref="setRef('spacer_y')")
     .sticky_scroll.sticky_scroll_x(
