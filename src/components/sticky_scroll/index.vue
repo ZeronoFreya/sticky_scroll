@@ -109,6 +109,7 @@ export default {
                 const { scrollLeft, scrollTop } = refEl.scroll_box
                 const translateX = scrollLeft + scrollDelta.x
                 const translateY = scrollTop + scrollDelta.y
+
                 refEl.scroll_content.style.transform = `translate3d(${translateX * -1}px, ${translateY * -1}px, 0)`
 
                 if (refEl.overscroll.before_x) {
@@ -128,7 +129,13 @@ export default {
             refEl,
             refElTransform,
         )
-        const { track_down } = useScrollbar(refEl, signal, scrollDelta, updateTime, refElTransform)
+        const { track_down, scroll_to, scroll_end } = useScrollbar(
+            refEl,
+            signal,
+            scrollDelta,
+            updateTime,
+            refElTransform,
+        )
 
         const _resize = () => {
             const { offsetWidth, offsetHeight } = refEl.scroll_content
@@ -203,6 +210,7 @@ export default {
             }
             const scrollLeft = refEl.scroll_box.scrollLeft
             // scrollWidth - offsetWidth 与 scrollLeft, 莫名奇妙有1px的误差
+            // scrollSize 由于历史原因并不可信, 此处的 scrollWidth 是内部 div 的offsetWidth
             if (scrollLeft > 0 && Math.abs(MaxScrollLeft - scrollLeft) > 1) {
                 scrollDelta.x = 0
                 return true
@@ -337,40 +345,9 @@ export default {
             }
         })
 
-        const scrollTo = (scroll, val) => {
-            const { offsetWidth, offsetHeight } = refEl.scroll_box
-            const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
-
-            const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
-            const MaxScroll =
-                scroll == 'x' ? scrollWidth - offsetWidth : scrollHeight - offsetHeight
-
-            if (val > 0 && val < MaxScroll) {
-                refEl.scroll_box[scrollPos] = val
-                return
-            }
-
-            if (scroll == 'x') {
-                if (val < 0) {
-                    scrollDelta.x = Math.max(val, -refEl.overscroll.before_x.offsetWidth)
-                } else {
-                    scrollDelta.x = Math.min(val, refEl.overscroll.after_x.offsetWidth)
-                }
-                updateTime('x')
-            } else {
-                if (val < 0) {
-                    scrollDelta.y = Math.max(val, -refEl.overscroll.before_y.offsetHeight)
-                } else {
-                    scrollDelta.y = Math.min(val, refEl.overscroll.after_y.offsetHeight)
-                }
-                updateTime('y')
-            }
-
-            refElTransform()
-        }
-
         expose({
-            scrollTo,
+            scrollTo: scroll_to,
+            scrollEnd: scroll_end,
         })
 
         return {

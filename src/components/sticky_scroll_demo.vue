@@ -30,6 +30,8 @@ export default {
             const track = e.currentTarget
             track.removeEventListener('pointermove', track_move)
             track.removeEventListener('pointerup', track_up)
+
+            ssEl.value.scrollEnd()
         }
 
         const track_down = (e) => {
@@ -200,7 +202,7 @@ li {
     }
 }
 .box {
-    width: 100%;
+    width: 80%;
     padding: 30px;
 }
 

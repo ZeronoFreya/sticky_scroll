@@ -2,38 +2,55 @@ export default function useScrollbar(refEl, signal, scrollDelta, updateTime, ref
     let math_temp = 0
     let thumb_mouse_offset = 0
 
-    const track_move = (e) => {
-        const scroll = e.currentTarget.dataset.scroll
-        const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
-        let offset = (scroll == 'x' ? e.offsetX : e.offsetY) - thumb_mouse_offset
-
-        let s = Math.round(offset * math_temp)
-
+    const scroll_to = (scroll, val) => {
         const { offsetWidth, offsetHeight } = refEl.scroll_box
         const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
 
+        const scrollPos = scroll == 'x' ? 'scrollLeft' : 'scrollTop'
         const MaxScroll = scroll == 'x' ? scrollWidth - offsetWidth : scrollHeight - offsetHeight
 
-        if (s > 0 && s < MaxScroll) {
-            refEl.scroll_box[scrollPos] = s
+        if (val < 0) {
+            refEl.scroll_box[scrollPos] = 0
+        } else if (val > MaxScroll) {
+            refEl.scroll_box[scrollPos] = MaxScroll
+            val -= MaxScroll
+        } else {
+            scrollDelta.x = 0
+            scrollDelta.y = 0
+            refEl.scroll_box[scrollPos] = val
             return
         }
 
         if (scroll == 'x') {
-            if (s < 0) {
-                scrollDelta.x = Math.max(s, -refEl.overscroll.before_x.offsetWidth)
+            if (val < 0) {
+                scrollDelta.x = Math.max(val, -refEl.overscroll.before_x.offsetWidth)
             } else {
-                scrollDelta.x = Math.min(s, refEl.overscroll.after_x.offsetWidth)
+                scrollDelta.x = Math.min(val, refEl.overscroll.after_x.offsetWidth)
             }
         } else {
-            if (s < 0) {
-                scrollDelta.y = Math.max(s, -refEl.overscroll.before_y.offsetHeight)
+            if (val < 0) {
+                scrollDelta.y = Math.max(val, -refEl.overscroll.before_y.offsetHeight)
             } else {
-                scrollDelta.y = Math.min(s, refEl.overscroll.after_y.offsetHeight)
+                scrollDelta.y = Math.min(val, refEl.overscroll.after_y.offsetHeight)
             }
         }
 
         refElTransform()
+    }
+
+    const scroll_end = () => {
+        if (scrollDelta.x != 0) {
+            updateTime('x')
+        }
+        if (scrollDelta.y != 0) {
+            updateTime('y')
+        }
+    }
+
+    const track_move = (e) => {
+        const scroll = e.currentTarget.dataset.scroll
+        const offset = (scroll == 'x' ? e.offsetX : e.offsetY) - thumb_mouse_offset
+        scroll_to(scroll, Math.round(offset * math_temp))
     }
 
     const track_up = (e) => {
@@ -44,12 +61,7 @@ export default function useScrollbar(refEl, signal, scrollDelta, updateTime, ref
         track.removeEventListener('pointermove', track_move)
         track.removeEventListener('pointerup', track_up)
 
-        if (scrollDelta.x != 0) {
-            updateTime('x')
-        }
-        if (scrollDelta.y != 0) {
-            updateTime('y')
-        }
+        scroll_end()
     }
 
     const track_down = (e) => {
@@ -80,5 +92,7 @@ export default function useScrollbar(refEl, signal, scrollDelta, updateTime, ref
     }
     return {
         track_down,
+        scroll_to,
+        scroll_end,
     }
 }
