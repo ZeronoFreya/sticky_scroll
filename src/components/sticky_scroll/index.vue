@@ -17,6 +17,11 @@ export default {
             type: String,
             default: '0px',
         },
+        out: {
+            // 滚动条偏移到框架外部
+            type: Boolean,
+            default: true,
+        },
         reverseX: {
             // 水平滚动条的位置设置在顶部
             type: Boolean,
@@ -321,7 +326,9 @@ export default {
                 if (refEl.scrollbar.scroll_x) {
                     const key = props.reverseX ? 'top' : 'bottom'
                     refEl.scrollbar.scroll_x.style[key] = props.offsetX
-                    refEl.scrollbar.scroll_x.style.transform = `translateY(${props.reverseX ? '-100' : '100'}%)`
+                    if (props.out) {
+                        refEl.scrollbar.scroll_x.style.transform = `translateY(${props.reverseX ? '-100' : '100'}%)`
+                    }
                 }
             }
             if (showY.value) {
@@ -329,7 +336,9 @@ export default {
                 if (refEl.scrollbar.scroll_y) {
                     const key = props.reverseY ? 'left' : 'right'
                     refEl.scrollbar.scroll_y.style[key] = props.offsetY
-                    refEl.scrollbar.scroll_y.style.transform = `translateX(${props.reverseY ? '-100' : '100'}%)`
+                    if (props.out) {
+                        refEl.scrollbar.scroll_y.style.transform = `translateX(${props.reverseY ? '-100' : '100'}%)`
+                    }
                 }
             }
         })
