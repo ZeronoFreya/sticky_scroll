@@ -1,5 +1,5 @@
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 import useScrollbar from './use_scrollbar'
 import useOverscroll from './use_overscroll'
@@ -16,6 +16,11 @@ export default {
             // 滚动节点圆角,
             type: String,
             default: '0px',
+        },
+        dark: {
+            // 暗色
+            type: Boolean,
+            default: true,
         },
         out: {
             // 滚动条偏移到框架外部
@@ -57,6 +62,11 @@ export default {
             type: Boolean,
             default: true,
         },
+        loadThreshold: {
+            // 加载阈值, 0代表不使用触底加载
+            type: Number,
+            default: 0,
+        },
     },
     setup(props, { emit, expose }) {
         const refEl = {
@@ -78,6 +88,8 @@ export default {
                 after_x: null,
                 before_y: null,
                 after_y: null,
+                load_x: null,
+                load_y: null,
             },
         }
         const setRef = (path) => (el) => {
@@ -89,14 +101,45 @@ export default {
             obj[keys[keys.length - 1]] = el
         }
 
+        const loading = ref(false)
+
         const controller = new AbortController()
         const { signal } = controller
 
-        const showX = computed(() => props.scroll.includes('x'))
-        const showY = computed(() => props.scroll.includes('y'))
+        const scrollCfg = computed(() => {
+            const hasX = props.scroll.includes('x')
+            const hasY = props.scroll.includes('y')
+
+            const styleX = {}
+            if (hasX) {
+                const key = props.reverseX ? 'top' : 'bottom'
+                styleX[key] = props.offsetX
+                if (props.out) {
+                    styleX.transform = `translateY(${props.reverseX ? '-100' : '100'}%)`
+                }
+            }
+
+            const styleY = {}
+            if (hasY) {
+                const key = props.reverseY ? 'left' : 'right'
+                styleY[key] = props.offsetY
+                if (props.out) {
+                    styleY.transform = `translateX(${props.reverseY ? '-100' : '100'}%)`
+                }
+            }
+
+            return {
+                showX: hasX,
+                showY: hasY,
+                styleX: hasX ? styleX : null,
+                styleY: hasY ? styleY : null,
+            }
+        })
 
         const overscrollStateX = ref(false)
         const overscrollStateY = ref(false)
+        const noMoreX = ref(false)
+        const noMoreY = ref(false)
 
         const scrollStateX = ref(false)
         const scrollStateY = ref(false)
@@ -125,15 +168,18 @@ export default {
                 if (refEl.overscroll.before_y) {
                     overscrollStateY.value = scrollDelta.y == 0 ? false : true
                     refEl.overscroll.before_y.style.transform = `translate3d(${translateX}px, -100%, 0)`
-                    refEl.overscroll.after_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
+                    if (refEl.overscroll.after_y) {
+                        refEl.overscroll.after_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
+                    }
+                }
+                if (refEl.overscroll.load_y) {
+                    refEl.overscroll.load_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
                 }
             })
         }
 
-        const { updateTime, mouseenter, mouseleave, scrollDelta, overX, overY } = useOverscroll(
-            refEl,
-            refElTransform,
-        )
+        const { updateTime, mouseenter, mouseleave, scrollDelta, overX, overY, loadX, loadY } =
+            useOverscroll(refEl, refElTransform, props.loadThreshold > 0)
         const { track_down, scroll_to, scroll_end } = useScrollbar(
             refEl,
             signal,
@@ -143,30 +189,28 @@ export default {
         )
 
         const _resize = () => {
-            const { offsetWidth, offsetHeight } = refEl.scroll_content
+            const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
             if (refEl.spacer_x) {
-                refEl.spacer_x.style.width = offsetWidth + 'px'
+                refEl.spacer_x.style.width = scrollWidth + 'px'
             }
             if (refEl.spacer_y) {
-                refEl.spacer_y.style.height = offsetHeight + 'px'
+                refEl.spacer_y.style.height = scrollHeight + 'px'
             }
-            const scrollWidth = offsetWidth
-            const scrollHeight = offsetHeight
+            // const scrollWidth = offsetWidth
+            // const scrollHeight = offsetHeight
+
+            const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
 
             scrollStateX.value =
-                refEl.scrollbar.scroll_x && scrollWidth <= refEl.scroll_box.offsetWidth
-                    ? true
-                    : false
+                refEl.scrollbar.scroll_x && scrollWidth <= offsetWidth ? true : false
 
             scrollStateY.value =
-                refEl.scrollbar.scroll_y && scrollHeight <= refEl.scroll_box.offsetHeight
-                    ? true
-                    : false
+                refEl.scrollbar.scroll_y && scrollHeight <= offsetHeight ? true : false
 
             if (props.customScrollBar) {
                 emit('scroll_resize', {
-                    offsetWidth: refEl.scroll_box.offsetWidth,
-                    offsetHeight: refEl.scroll_box.offsetHeight,
+                    offsetWidth,
+                    offsetHeight,
                     scrollWidth,
                     scrollHeight,
                 })
@@ -174,31 +218,56 @@ export default {
                 if (refEl.scrollbar.thumb_x) {
                     const width =
                         scrollWidth > 0
-                            ? (refEl.scrollbar.track_x.offsetWidth * refEl.scroll_box.offsetWidth) /
-                              scrollWidth
+                            ? (refEl.scrollbar.track_x.offsetWidth * offsetWidth) / scrollWidth
                             : 0
                     refEl.scrollbar.thumb_x.style.width = width + 'px'
+
+                    const translateX =
+                        scrollWidth > 0
+                            ? (refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth
+                            : 0
+                    refEl.scrollbar.thumb_x.style.transform = `translate3d(${translateX}px, 0, 0)`
                 }
                 if (refEl.scrollbar.thumb_y) {
                     const height =
                         scrollHeight > 0
-                            ? (refEl.scrollbar.track_y.offsetHeight *
-                                  refEl.scroll_box.offsetHeight) /
-                              scrollHeight
+                            ? (refEl.scrollbar.track_y.offsetHeight * offsetHeight) / scrollHeight
                             : 0
                     refEl.scrollbar.thumb_y.style.height = height + 'px'
+
+                    const translateY =
+                        scrollHeight > 0
+                            ? (refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight
+                            : 0
+                    refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${translateY}px, 0)`
                 }
             }
 
             if (refEl.overscroll.before_x) {
-                refEl.overscroll.before_x.style.height = refEl.scroll_box.offsetHeight + 'px'
-                refEl.overscroll.after_x.style.height = refEl.scroll_box.offsetHeight + 'px'
+                refEl.overscroll.before_x.style.height = offsetHeight + 'px'
+                refEl.overscroll.after_x.style.height = offsetHeight + 'px'
             }
             if (refEl.overscroll.before_y) {
-                refEl.overscroll.before_y.style.width = refEl.scroll_box.offsetWidth + 'px'
-                refEl.overscroll.after_y.style.width = refEl.scroll_box.offsetWidth + 'px'
+                refEl.overscroll.before_y.style.width = offsetWidth + 'px'
+
+                if (refEl.overscroll.after_y) {
+                    refEl.overscroll.after_y.style.width = offsetWidth + 'px'
+                }
             }
+            if (refEl.overscroll.load_y) {
+                refEl.overscroll.load_y.style.width = offsetWidth + 'px'
+            }
+
+            loading.value = false
         }
+
+        watch(
+            () => props.scroll,
+            () => {
+                _resize()
+            },
+            { flush: 'post' },
+        )
 
         const sizeObserver = new ResizeObserver((entries) => {
             if (animeId.resize) {
@@ -216,8 +285,13 @@ export default {
             const scrollLeft = refEl.scroll_box.scrollLeft
             // scrollWidth - offsetWidth 与 scrollLeft, 莫名奇妙有1px的误差
             // scrollSize 由于历史原因并不可信, 此处的 scrollWidth 是内部 div 的offsetWidth
-            if (scrollLeft > 0 && Math.abs(MaxScrollLeft - scrollLeft) > 1) {
+            const scrollRemaining = Math.abs(MaxScrollLeft - scrollLeft)
+            if (scrollLeft > 0 && scrollRemaining > 1) {
                 scrollDelta.x = 0
+                if (props.loadThreshold > 0 && scrollRemaining < props.loadThreshold) {
+                    // 滚动距离小于100, 加载更多
+                    emit('loadmore', 'x')
+                }
                 return true
             }
             overX(event, scrollLeft)
@@ -232,11 +306,48 @@ export default {
             }
             const scrollTop = refEl.scroll_box.scrollTop
             // 还没到顶部也还没到底部：正常滚动，直接返回
-            if (scrollTop > 0 && Math.abs(MaxScrollTop - scrollTop) > 1) {
+            const scrollRemaining = Math.abs(MaxScrollTop - scrollTop)
+            // console.log(scrollTop, scrollRemaining)
+
+            if (scrollTop > 0 && scrollRemaining > 1) {
+                if (props.loadThreshold > 0 && scrollRemaining < props.loadThreshold) {
+                    // 滚动距离小于100, 加载更多
+                    if (!loading.value) {
+                        loading.value = true
+                        console.log(3333333333333)
+                        emit('loadmore', 'y')
+                    }
+                    return true
+                }
                 scrollDelta.y = 0
                 return true
             }
-            overY(event, scrollTop)
+            // if (scrollTop > 0) {
+            //     if (
+            //         scrollRemaining > 1 &&
+            //         props.loadThreshold > 0 &&
+            //         scrollRemaining < props.loadThreshold
+            //     ) {
+            //         // 滚动距离小于100, 加载更多
+            //         if (!loading.value) {
+            //             loading.value = true
+            //             console.log(3333333333333)
+            //             emit('loadmore', 'y')
+            //         }
+            //         return true
+            //     }
+            //     if (scrollRemaining > 1) {
+            //         scrollDelta.y = 0
+            //         return true
+            //     }
+            // }
+            if (props.loadThreshold > 0 && scrollTop > props.loadThreshold) {
+                // emit('loadmore', 'y')
+                loadY(event)
+            } else {
+                overY(event, scrollTop)
+            }
+
             return false
         }
 
@@ -294,6 +405,9 @@ export default {
             sizeObserver.observe(refEl.scroll_box, {
                 box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
             })
+            sizeObserver.observe(refEl.scroll_content, {
+                box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
+            })
             refEl.scroll_box.addEventListener('wheel', mousewheel, { signal, passive: false })
 
             if (props.scroll == 'x') {
@@ -320,27 +434,9 @@ export default {
                 refEl.sticky_anchor.style.height = '0px'
             }
 
-            refEl.scroll_box.style.overflow = 'hidden'
-            if (showX.value) {
-                refEl.scroll_box.style.overflowX = 'auto'
-                if (refEl.scrollbar.scroll_x) {
-                    const key = props.reverseX ? 'top' : 'bottom'
-                    refEl.scrollbar.scroll_x.style[key] = props.offsetX
-                    if (props.out) {
-                        refEl.scrollbar.scroll_x.style.transform = `translateY(${props.reverseX ? '-100' : '100'}%)`
-                    }
-                }
-            }
-            if (showY.value) {
-                refEl.scroll_box.style.overflowY = 'auto'
-                if (refEl.scrollbar.scroll_y) {
-                    const key = props.reverseY ? 'left' : 'right'
-                    refEl.scrollbar.scroll_y.style[key] = props.offsetY
-                    if (props.out) {
-                        refEl.scrollbar.scroll_y.style.transform = `translateX(${props.reverseY ? '-100' : '100'}%)`
-                    }
-                }
-            }
+            // refEl.scroll_box.style.overflowX = showX.value ? 'auto' : 'hidden'
+
+            // refEl.scroll_box.style.overflowY = showY.value ? 'auto' : 'hidden'
         })
         // onUpdated(() => {
         //     // nextTick(handleSlot)
@@ -349,6 +445,7 @@ export default {
             controller.abort()
 
             if (sizeObserver) {
+                sizeObserver.unobserve(refEl.scroll_content)
                 sizeObserver.unobserve(refEl.scroll_box)
                 sizeObserver.disconnect()
             }
@@ -362,8 +459,7 @@ export default {
         return {
             refEl,
             setRef,
-            showX,
-            showY,
+            scrollCfg,
             track_down,
             mousewheel,
             mousescroll,
@@ -373,6 +469,8 @@ export default {
             overscrollStateY,
             scrollStateX,
             scrollStateY,
+            noMoreX,
+            noMoreY,
         }
     },
 }

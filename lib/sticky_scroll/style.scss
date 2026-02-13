@@ -2,6 +2,14 @@
     position: relative;
     width: 100%;
     height: 100%;
+    &.daylight {
+        --base_bg: rgba(139, 139, 139, 1);
+        --hover_bg: rgba(99, 99, 99, 1);
+    }
+    &.darkness {
+        --base_bg: rgba(159, 159, 159, 1);
+        --hover_bg: rgba(209, 209, 209, 1);
+    }
     .sticky_anchor {
         position: sticky;
         top: 0px;
@@ -47,12 +55,16 @@
         width: 100%;
         height: 100%;
         border-radius: 100vw;
-        background: rgba(44, 44, 44, 0);
+        background: rgba(0, 0, 0, 0);
         transition: background 0.6s ease;
         &:hover {
             .thumb_x,
             .thumb_y {
-                padding: 3px;
+                padding: 4px;
+            }
+            .thumb_view_x,
+            .thumb_view_y {
+                background: var(--hover_bg);
             }
         }
     }
@@ -61,9 +73,9 @@
         z-index: 1;
         opacity: 0;
         position: absolute;
-        background: rgba(44, 44, 44, 1);
         border-radius: 100vw;
         transition: opacity 0.2s ease;
+        background: var(--base_bg);
     }
     .track_view_x {
         top: 50%;
@@ -79,16 +91,7 @@
         width: 20%;
         height: 100%;
     }
-    .track_down {
-        .track_view_x,
-        .track_view_y {
-            opacity: 1;
-        }
-        .thumb_view_x,
-        .thumb_view_y {
-            background: rgba(44, 44, 44, 1);
-        }
-    }
+
     .thumb_x {
         width: 0px;
         height: 100%;
@@ -115,7 +118,7 @@
         width: 100%;
         height: 100%;
         border-radius: 100vw;
-        background: #9f9f9f;
+        background: var(--base_bg);
         transition: background 0.2s ease;
     }
     .thumb_view_x {
@@ -124,8 +127,17 @@
     .thumb_view_y {
         min-height: 1em;
     }
+
+    .track_down {
+        .track_view_x,
+        .track_view_y {
+            opacity: 1;
+        }
+    }
+
     .overscroll_before_x,
-    .overscroll_after_x {
+    .overscroll_after_x,
+    .overscroll_load_x {
         opacity: 0;
         transition:
             transform 1s cubic-bezier(0.23, 1, 0.32, 1),
@@ -142,13 +154,15 @@
         top: 0;
         transform: translateX(-100%);
     }
-    .overscroll_after_x {
+    .overscroll_after_x,
+    .overscroll_load_x {
         right: 0;
         top: 0;
         transform: translateX(100%);
     }
     .overscroll_before_y,
-    .overscroll_after_y {
+    .overscroll_after_y,
+    .overscroll_load_y {
         opacity: 0;
         transition:
             transform 1s cubic-bezier(0.23, 1, 0.32, 1),
@@ -164,7 +178,8 @@
         left: 0;
         transform: translateY(-100%);
     }
-    .overscroll_after_y {
+    .overscroll_after_y,
+    .overscroll_load_y {
         bottom: 0;
         left: 0;
         transform: translateY(100%);

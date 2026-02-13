@@ -70,9 +70,32 @@ export default {
             math_temp = scrollHeight / trackY.value.offsetHeight
         }
 
+        const loadmoreData = ref([])
+        const getMore = () => {
+            const start = loadmoreData.value.length
+            const newData = Array.from({ length: 20 }, (_, i) => start + i)
+            loadmoreData.value.push(...newData)
+        }
+        getMore()
+        const loadmore = (type) => {
+            console.log('loadmore', type)
+
+            setTimeout(getMore, 3000)
+        }
+
         onMounted(() => {})
 
-        return { liData, ssEl, trackY, thumbY, track_down, scrollMove, scrollResize }
+        return {
+            liData,
+            ssEl,
+            trackY,
+            thumbY,
+            track_down,
+            scrollMove,
+            scrollResize,
+            loadmore,
+            loadmoreData,
+        }
     },
 }
 </script>
@@ -163,6 +186,15 @@ export default {
                         .before_y before_y
                     template(v-slot:after_y)
                         .after_y after_y
+    .flex
+        .left
+            h2.mb10 触底加载    
+            .scroll_y.pd5.y
+                StickyScroll(scroll="y", radius="12px", :loadThreshold="200", @loadmore="loadmore")
+                    .yyyy
+                        li(v-for="i in loadmoreData", :key="i")
+                            .content {{i}}
+        .right
 </template>
 
 <style lang="scss">
@@ -229,12 +261,12 @@ li {
     padding-top: 15px;
 }
 
-.track_view {
-    background: white;
-}
-.thumb_view {
-    background: white;
-}
+// .track_view {
+//     background: white;
+// }
+// .thumb_view {
+//     background: white;
+// }
 .scroll_y {
     width: 100%;
     height: 50vh;

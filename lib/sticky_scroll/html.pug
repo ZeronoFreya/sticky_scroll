@@ -1,13 +1,13 @@
-.sticky-containter
+.sticky-containter(:class="dark ? 'darkness': 'daylight'")
     .scroll_box.sticky_hide_default_scrollbar(
             :ref="setRef('scroll_box')", 
             @scroll="mousescroll",
-            :style="{borderRadius: radius}"
+            :style="{borderRadius: radius, overflowX: scrollCfg.showX ? 'auto' : 'hidden', overflowY: scrollCfg.showY ? 'auto' : 'hidden'}"
         )
         .sticky_anchor(:ref="setRef('sticky_anchor')")
             .scroll_content(:ref="setRef('scroll_content')")
                 slot
-                template(v-if="showX && overscrollX")
+                template(v-if="scrollCfg.showX && overscrollX")
                     .overscroll_before_x(
                         data-scroll="x", 
                         :class="{overscroll_show: overscrollStateX}",
@@ -15,7 +15,7 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="before_x")
-                            span.overscroll_sticky_before_x 前
+                            span.overscroll_sticky_before_x 没了
                     .overscroll_after_x(
                         data-scroll="x", 
                         :class="{overscroll_show: overscrollStateX}",
@@ -23,8 +23,8 @@
                         @mouseenter="mouseenter", @mouseleave="mouseleave"
                     )
                         slot(name="after_x")
-                            span.overscroll_sticky_after_x 后
-                template(v-if="showY && overscrollY")
+                            span.overscroll_sticky_after_x 没了
+                template(v-if="scrollCfg.showY && overscrollY")
                     .overscroll_before_y(
                         data-scroll="y", 
                         :class="{overscroll_show: overscrollStateY}",
@@ -34,6 +34,7 @@
                         slot(name="before_y")
                             span.overscroll_sticky_before_y 到顶了
                     .overscroll_after_y(
+                        v-if="loadThreshold == 0 || noMoreY",
                         data-scroll="y", 
                         :class="{overscroll_show: overscrollStateY}",
                         :ref="setRef('overscroll.after_y')",
@@ -41,21 +42,32 @@
                     )
                         slot(name="after_y")  
                             span.overscroll_sticky_after_y  到底了    
-        .spacer(v-if="showX", :ref="setRef('spacer_x')")
-        .spacer(v-if="showY || scroll == 'x'", :ref="setRef('spacer_y')")
+                template(v-if="loadThreshold > 0 && !noMoreY")
+                    .overscroll_load_y(
+                        data-scroll="y", 
+                        :class="{overscroll_show: overscrollStateY}",
+                        :ref="setRef('overscroll.load_y')",
+                    )
+                        slot(name="load_y")  
+                            span.overscroll_sticky_load_y  加载中
+                
+        .spacer(v-if="scrollCfg.showX", :ref="setRef('spacer_x')")
+        .spacer(v-if="scrollCfg.showY || scroll == 'x'", :ref="setRef('spacer_y')")
     .sticky_scroll.sticky_scroll_x(
-        v-if="!customScrollBar && showX", 
+        v-if="!customScrollBar && scrollCfg.showX", 
         :ref="setRef('scrollbar.scroll_x')",
-        :class="{sticky_scroll_hide: scrollStateX}"
+        :class="{sticky_scroll_hide: scrollStateX}",
+        :style="scrollCfg.styleX"
     )
         .track_x(:ref="setRef('scrollbar.track_x')", data-scroll="x", @pointerdown.stop="track_down")
             .track_view.track_view_x
             .thumb_x(:ref="setRef('scrollbar.thumb_x')")
                 .thumb_view.thumb_view_x
     .sticky_scroll.sticky_scroll_y(
-        v-if="!customScrollBar && showY", 
+        v-if="!customScrollBar && scrollCfg.showY", 
         :ref="setRef('scrollbar.scroll_y')",
-        :class="{sticky_scroll_hide: scrollStateY}"
+        :class="{sticky_scroll_hide: scrollStateY}",
+        :style="scrollCfg.styleY"
     )
         .track_y(:ref="setRef('scrollbar.track_y')", data-scroll="y", @pointerdown.stop="track_down")
             .track_view.track_view_y
