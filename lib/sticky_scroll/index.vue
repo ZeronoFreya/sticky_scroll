@@ -47,7 +47,6 @@ export default {
             type: Boolean,
             default: false,
         },
-
         out: {
             // 滚动条偏移到框架外部
             type: Boolean,
@@ -89,14 +88,14 @@ export default {
             default: false,
         },
         loadThresholdX: {
-            // 加载阈值, 0代表不使用触底加载
+            // 加载阈值, -1代表不使用触底加载
             type: Number,
-            default: 0,
+            default: -1,
         },
         loadThresholdY: {
-            // 加载阈值, 0代表不使用触底加载
+            // 加载阈值, -1代表不使用触底加载
             type: Number,
-            default: 0,
+            default: -1,
         },
         teleportX: {
             // 变更水平滚动条的位置
@@ -417,7 +416,7 @@ export default {
                             : 0
                     refEl.scrollbar.thumb_x.style.transform = `translate3d(${translateX}px, 0, 0)`
 
-                    if (props.loadThresholdX > 0 && !loading.x.status && !loading.x.end) {
+                    if (props.loadThresholdX >= 0 && !loading.x.status && !loading.x.end) {
                         // 剩余高度不足 loadThresholdX, 加载更多
                         if (scrollWidth - scrollLeft - offsetWidth < props.loadThresholdX) {
                             loading.x.status = true
@@ -432,7 +431,7 @@ export default {
                             : 0
                     refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${translateY}px, 0)`
 
-                    if (props.loadThresholdY > 0 && !loading.y.status && !loading.y.end) {
+                    if (props.loadThresholdY >= 0 && !loading.y.status && !loading.y.end) {
                         // 剩余高度不足 loadThresholdY, 加载更多
                         if (scrollHeight - scrollTop - offsetHeight < props.loadThresholdY) {
                             loading.y.status = true
@@ -517,9 +516,16 @@ export default {
         }
 
         expose({
-            scroll: (val_x, val_y) => {},
+            scroll: (val_x, val_y) => {
+                if (props.customScrollBar && customUpScroll == '' && props.overscrollX) {
+                    customUpScroll = 'xy'
+                    document.addEventListener('mouseup', customUp, true)
+                    document.addEventListener('pointerup', customUp, true)
+                }
+                scroll_to('xy', val_x, val_y)
+            },
             scrollX: (val) => {
-                if (props.customScrollBar && customUpScroll == '') {
+                if (props.customScrollBar && customUpScroll == '' && props.overscrollX) {
                     customUpScroll = 'x'
                     document.addEventListener('mouseup', customUp, true)
                     document.addEventListener('pointerup', customUp, true)
@@ -527,7 +533,7 @@ export default {
                 scroll_to('x', val)
             },
             scrollY: (val) => {
-                if (props.customScrollBar && customUpScroll == '') {
+                if (props.customScrollBar && customUpScroll == '' && props.overscrollY) {
                     customUpScroll = 'y'
                     document.addEventListener('mouseup', customUp, true)
                     document.addEventListener('pointerup', customUp, true)
