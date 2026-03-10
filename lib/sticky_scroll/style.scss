@@ -1,143 +1,52 @@
-:where(.sticky-containter) {
+:where(.ss_sticky-containter) {
     position: relative;
     width: 100%;
+    max-height: 100%;
     height: 100%;
-    &.daylight {
+    &.ss_daylight {
         --base_bg: rgba(139, 139, 139, 1);
         --hover_bg: rgba(99, 99, 99, 1);
     }
-    &.darkness {
+    &.ss_darkness {
         --base_bg: rgba(159, 159, 159, 1);
         --hover_bg: rgba(209, 209, 209, 1);
     }
-    .sticky_anchor {
+    .ss_sticky_anchor {
         position: sticky;
         top: 0px;
         left: 0px;
     }
-    .scroll_box {
+    .ss_scroll_box {
         position: relative;
         z-index: 1;
         width: 100%;
         height: 100%;
     }
 
-    .scroll_content {
+    .ss_scroll_content {
         min-width: 100%;
+        min-height: 100%;
         width: fit-content;
         height: fit-content;
         position: absolute;
         top: 0;
         left: 0;
         transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
-        will-change: transform;
-    }
+        // will-change: transform;
 
-    .sticky_scroll_x {
-        position: absolute;
-        z-index: 2;
-        left: 0px;
-        width: 100%;
-        height: 16px;
-        padding: 0 15px;
-    }
-    .sticky_scroll_y {
-        position: absolute;
-        z-index: 2;
-        top: 0;
-        width: 16px;
-        height: 100%;
-        padding: 15px 0;
-    }
-    .track_x,
-    .track_y {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        border-radius: 100vw;
-        background: rgba(0, 0, 0, 0);
-        transition: background 0.6s ease;
-        &:hover {
-            .thumb_x,
-            .thumb_y {
-                padding: 4px;
-            }
-            .thumb_view_x,
-            .thumb_view_y {
-                background: var(--hover_bg);
+        &.ss_scroll_x {
+            gap: 5px;
+            > * {
+                display: flex;
+                align-items: center;
+                flex-direction: row;
             }
         }
     }
-    .track_view_x,
-    .track_view_y {
-        z-index: 1;
-        opacity: 0;
-        position: absolute;
-        border-radius: 100vw;
-        transition: opacity 0.2s ease;
-        background: var(--base_bg);
-    }
-    .track_view_x {
-        top: 50%;
-        left: 0px;
-        transform: translateY(-50%);
-        width: 100%;
-        height: 20%;
-    }
-    .track_view_y {
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 20%;
-        height: 100%;
-    }
 
-    .thumb_x {
-        width: 0px;
-        height: 100%;
-    }
-    .thumb_y {
-        width: 100%;
-        height: 0px;
-    }
-    .thumb_x,
-    .thumb_y {
-        position: relative;
-        z-index: 2;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition:
-            transform 1s cubic-bezier(0.23, 1, 0.32, 1),
-            padding 0.1s ease;
-        padding: 6px;
-    }
-    .thumb_view_x,
-    .thumb_view_y {
-        pointer-events: none;
-        width: 100%;
-        height: 100%;
-        border-radius: 100vw;
-        background: var(--base_bg);
-        transition: background 0.2s ease;
-    }
-    .thumb_view_x {
-        min-width: 1em;
-    }
-    .thumb_view_y {
-        min-height: 1em;
-    }
-
-    .track_down {
-        .track_view_x,
-        .track_view_y {
-            opacity: 1;
-        }
-    }
-
-    .overscroll_before_x,
-    .overscroll_after_x,
-    .overscroll_load_x {
+    .ss_overscroll_before_x,
+    .ss_overscroll_after_x,
+    .ss_overscroll_load_x {
         opacity: 0;
         transition:
             transform 1s cubic-bezier(0.23, 1, 0.32, 1),
@@ -149,20 +58,20 @@
         justify-content: center;
         align-items: center;
     }
-    .overscroll_before_x {
+    .ss_overscroll_before_x {
         left: 0;
         top: 0;
         transform: translateX(-100%);
     }
-    .overscroll_after_x,
-    .overscroll_load_x {
+    .ss_overscroll_after_x,
+    .ss_overscroll_load_x {
         right: 0;
         top: 0;
         transform: translateX(100%);
     }
-    .overscroll_before_y,
-    .overscroll_after_y,
-    .overscroll_load_y {
+    .ss_overscroll_before_y,
+    .ss_overscroll_after_y,
+    .ss_overscroll_load_y {
         opacity: 0;
         transition:
             transform 1s cubic-bezier(0.23, 1, 0.32, 1),
@@ -173,40 +82,146 @@
         justify-content: center;
         align-items: center;
     }
-    .overscroll_before_y {
+    .ss_overscroll_before_y {
         top: 0;
         left: 0;
         transform: translateY(-100%);
     }
-    .overscroll_after_y,
-    .overscroll_load_y {
+    .ss_overscroll_after_y,
+    .ss_overscroll_load_y {
         bottom: 0;
         left: 0;
         transform: translateY(100%);
     }
-    .overscroll_sticky_before_x,
-    .overscroll_sticky_after_x {
+    .ss_overscroll_sticky_before_x,
+    .ss_overscroll_sticky_after_x,
+    .ss_overscroll_load_x {
         padding: 0 10px;
     }
 
-    .overscroll_sticky_before_y,
-    .overscroll_sticky_after_y {
+    .ss_overscroll_sticky_before_y,
+    .ss_overscroll_sticky_after_y,
+    .ss_overscroll_load_y {
         padding: 10px 0;
     }
 }
-.spacer {
+
+:where(.ss_sticky_scroll) {
+    &.ss_sticky_scroll_x {
+        position: absolute;
+        z-index: 2;
+        left: 0px;
+        width: 100%;
+        height: 16px;
+        padding: 0 15px;
+    }
+    &.ss_sticky_scroll_y {
+        position: absolute;
+        z-index: 2;
+        top: 0;
+        width: 16px;
+        height: 100%;
+        padding: 15px 0;
+    }
+    .ss_track_x,
+    .ss_track_y {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 100vw;
+        background: rgba(0, 0, 0, 0);
+        transition: background 0.6s ease;
+        &:hover {
+            .ss_thumb_x,
+            .ss_thumb_y {
+                padding: 4px;
+            }
+            .ss_thumb_view_x,
+            .ss_thumb_view_y {
+                background: var(--hover_bg);
+            }
+        }
+    }
+    .ss_track_view_x,
+    .ss_track_view_y {
+        z-index: 1;
+        opacity: 0;
+        position: absolute;
+        border-radius: 100vw;
+        transition: opacity 0.2s ease;
+        background: var(--base_bg);
+    }
+    .ss_track_view_x {
+        top: 50%;
+        left: 0px;
+        transform: translateY(-50%);
+        width: 100%;
+        height: 20%;
+    }
+    .ss_track_view_y {
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20%;
+        height: 100%;
+    }
+
+    .ss_thumb_x {
+        width: 0px;
+        height: 100%;
+    }
+    .ss_thumb_y {
+        width: 100%;
+        height: 0px;
+    }
+    .ss_thumb_x,
+    .ss_thumb_y {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition:
+            transform 1s cubic-bezier(0.23, 1, 0.32, 1),
+            padding 0.1s ease;
+        padding: 6px;
+    }
+    .ss_thumb_view_x,
+    .ss_thumb_view_y {
+        pointer-events: none;
+        width: 100%;
+        height: 100%;
+        border-radius: 100vw;
+        background: var(--base_bg);
+        transition: background 0.2s ease;
+    }
+    .ss_thumb_view_x {
+        min-width: 1em;
+    }
+    .ss_thumb_view_y {
+        min-height: 1em;
+    }
+
+    .ss_track_down {
+        .ss_track_view_x,
+        .ss_track_view_y {
+            opacity: 1;
+        }
+    }
+}
+.ss_spacer {
     width: 0px;
     height: 0px;
     pointer-events: none;
 }
-.sticky_hide_default_scrollbar::-webkit-scrollbar {
+.ss_sticky_hide_default_scrollbar::-webkit-scrollbar {
     display: none;
 }
 
-.sticky_scroll_hide {
+.ss_sticky_scroll_hide {
     display: none;
 }
 
-.overscroll_show {
+.ss_overscroll_show {
     opacity: 1;
 }

@@ -1,5 +1,5 @@
 <script>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 import useScrollbar from './use_scrollbar'
 import useOverscroll from './use_overscroll'
@@ -17,11 +17,37 @@ export default {
             type: String,
             default: '0px',
         },
+        minW: {
+            // 最小宽度,
+            type: String,
+            default: '0px',
+        },
+        minH: {
+            // 最小高度,
+            type: String,
+            default: '0px',
+        },
+        maxW: {
+            // 最大宽度,
+            type: String,
+            default: '100%',
+        },
+        maxH: {
+            // 最大高度,
+            type: String,
+            default: '100%',
+        },
         dark: {
             // 暗色
             type: Boolean,
             default: true,
         },
+        autoH: {
+            // 自适应高度
+            type: Boolean,
+            default: false,
+        },
+
         out: {
             // 滚动条偏移到框架外部
             type: Boolean,
@@ -55,21 +81,37 @@ export default {
         overscrollX: {
             // 显示水平过界
             type: Boolean,
-            default: true,
+            default: false,
         },
         overscrollY: {
             // 显示垂直过界
             type: Boolean,
-            default: true,
+            default: false,
         },
-        loadThreshold: {
+        loadThresholdX: {
             // 加载阈值, 0代表不使用触底加载
             type: Number,
             default: 0,
         },
+        loadThresholdY: {
+            // 加载阈值, 0代表不使用触底加载
+            type: Number,
+            default: 0,
+        },
+        teleportX: {
+            // 变更水平滚动条的位置
+            type: String,
+            default: 'body',
+        },
+        teleportY: {
+            // 变更垂直滚动条的位置
+            type: String,
+            default: 'body',
+        },
     },
     setup(props, { emit, expose }) {
         const refEl = {
+            root: null,
             scroll_box: null,
             sticky_anchor: null,
             scroll_content: null,
@@ -101,7 +143,21 @@ export default {
             obj[keys[keys.length - 1]] = el
         }
 
-        const loading = ref(false)
+        const loading = reactive({
+            x: {
+                status: false,
+                end: false,
+            },
+            y: {
+                status: false,
+                end: false,
+            },
+        })
+
+        const disTeleport = reactive({
+            x: computed(() => props.teleportX === 'body'),
+            y: computed(() => props.teleportY === 'body'),
+        })
 
         const controller = new AbortController()
         const { signal } = controller
@@ -138,8 +194,6 @@ export default {
 
         const overscrollStateX = ref(false)
         const overscrollStateY = ref(false)
-        const noMoreX = ref(false)
-        const noMoreY = ref(false)
 
         const scrollStateX = ref(false)
         const scrollStateY = ref(false)
@@ -164,6 +218,8 @@ export default {
                     overscrollStateX.value = scrollDelta.x == 0 ? false : true
                     refEl.overscroll.before_x.style.transform = `translate3d(-100%, ${translateY}px, 0)`
                     refEl.overscroll.after_x.style.transform = `translate3d(100%, ${translateY}px, 0)`
+                } else if (loading.x.status) {
+                    overscrollStateX.value = scrollDelta.x == 0 ? false : true
                 }
                 if (refEl.overscroll.before_y) {
                     overscrollStateY.value = scrollDelta.y == 0 ? false : true
@@ -171,6 +227,8 @@ export default {
                     if (refEl.overscroll.after_y) {
                         refEl.overscroll.after_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
                     }
+                } else if (loading.y.status) {
+                    overscrollStateY.value = scrollDelta.y == 0 ? false : true
                 }
                 if (refEl.overscroll.load_y) {
                     refEl.overscroll.load_y.style.transform = `translate3d(${translateX}px, 100%, 0)`
@@ -178,14 +236,16 @@ export default {
             })
         }
 
-        const { updateTime, mouseenter, mouseleave, scrollDelta, overX, overY, loadX, loadY } =
-            useOverscroll(refEl, refElTransform, props.loadThreshold > 0)
-        const { track_down, scroll_to, scroll_end } = useScrollbar(
+        const { resetTime, clearTime, mouseenter, mouseleave, scrollDelta, overX, overY } =
+            useOverscroll(refEl, refElTransform, loading)
+
+        const { track_down, scroll_to } = useScrollbar(
             refEl,
             signal,
             scrollDelta,
-            updateTime,
+            resetTime,
             refElTransform,
+            loading,
         )
 
         const _resize = () => {
@@ -196,8 +256,13 @@ export default {
             if (refEl.spacer_y) {
                 refEl.spacer_y.style.height = scrollHeight + 'px'
             }
-            // const scrollWidth = offsetWidth
-            // const scrollHeight = offsetHeight
+            if (props.autoH) {
+                refEl.root.style.height = Math.ceil(scrollHeight) + 'px'
+            }
+
+            if (props.scroll == 'x') {
+                refEl.scroll_content.style.height = Math.ceil(scrollHeight) + 'px'
+            }
 
             const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
 
@@ -258,7 +323,8 @@ export default {
                 refEl.overscroll.load_y.style.width = offsetWidth + 'px'
             }
 
-            loading.value = false
+            loading.x.status = false
+            loading.y.status = false
         }
 
         watch(
@@ -277,6 +343,7 @@ export default {
         })
 
         const scrollX = (event, MaxScrollLeft) => {
+            clearTime('x')
             if (MaxScrollLeft < 0) {
                 event.preventDefault()
                 scrollDelta.x = 0
@@ -288,17 +355,14 @@ export default {
             const scrollRemaining = Math.abs(MaxScrollLeft - scrollLeft)
             if (scrollLeft > 0 && scrollRemaining > 1) {
                 scrollDelta.x = 0
-                if (props.loadThreshold > 0 && scrollRemaining < props.loadThreshold) {
-                    // 滚动距离小于100, 加载更多
-                    emit('loadmore', 'x')
-                }
                 return true
             }
-            overX(event, scrollLeft)
+            overX(event)
             return false
         }
 
         const scrollY = (event, MaxScrollTop) => {
+            clearTime('y')
             if (MaxScrollTop < 0) {
                 event.preventDefault()
                 scrollDelta.y = 0
@@ -307,47 +371,12 @@ export default {
             const scrollTop = refEl.scroll_box.scrollTop
             // 还没到顶部也还没到底部：正常滚动，直接返回
             const scrollRemaining = Math.abs(MaxScrollTop - scrollTop)
-            // console.log(scrollTop, scrollRemaining)
 
             if (scrollTop > 0 && scrollRemaining > 1) {
-                if (props.loadThreshold > 0 && scrollRemaining < props.loadThreshold) {
-                    // 滚动距离小于100, 加载更多
-                    if (!loading.value) {
-                        loading.value = true
-                        console.log(3333333333333)
-                        emit('loadmore', 'y')
-                    }
-                    return true
-                }
                 scrollDelta.y = 0
                 return true
             }
-            // if (scrollTop > 0) {
-            //     if (
-            //         scrollRemaining > 1 &&
-            //         props.loadThreshold > 0 &&
-            //         scrollRemaining < props.loadThreshold
-            //     ) {
-            //         // 滚动距离小于100, 加载更多
-            //         if (!loading.value) {
-            //             loading.value = true
-            //             console.log(3333333333333)
-            //             emit('loadmore', 'y')
-            //         }
-            //         return true
-            //     }
-            //     if (scrollRemaining > 1) {
-            //         scrollDelta.y = 0
-            //         return true
-            //     }
-            // }
-            if (props.loadThreshold > 0 && scrollTop > props.loadThreshold) {
-                // emit('loadmore', 'y')
-                loadY(event)
-            } else {
-                overY(event, scrollTop)
-            }
-
+            overY(event)
             return false
         }
 
@@ -376,7 +405,7 @@ export default {
         }
 
         const mousescroll = (e) => {
-            const { scrollLeft, scrollTop } = refEl.scroll_box
+            const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
             if (props.customScrollBar) {
                 emit('scroll_move', { scrollLeft, scrollTop, scrollWidth, scrollHeight })
@@ -387,6 +416,14 @@ export default {
                             ? (refEl.scrollbar.track_x.offsetWidth * scrollLeft) / scrollWidth
                             : 0
                     refEl.scrollbar.thumb_x.style.transform = `translate3d(${translateX}px, 0, 0)`
+
+                    if (props.loadThresholdX > 0 && !loading.x.status && !loading.x.end) {
+                        // 剩余高度不足 loadThresholdX, 加载更多
+                        if (scrollWidth - scrollLeft - offsetWidth < props.loadThresholdX) {
+                            loading.x.status = true
+                            emit('loadmoreX')
+                        }
+                    }
                 }
                 if (refEl.scrollbar.thumb_y) {
                     const translateY =
@@ -394,6 +431,14 @@ export default {
                             ? (refEl.scrollbar.track_y.offsetHeight * scrollTop) / scrollHeight
                             : 0
                     refEl.scrollbar.thumb_y.style.transform = `translate3d(0, ${translateY}px, 0)`
+
+                    if (props.loadThresholdY > 0 && !loading.y.status && !loading.y.end) {
+                        // 剩余高度不足 loadThresholdY, 加载更多
+                        if (scrollHeight - scrollTop - offsetHeight < props.loadThresholdY) {
+                            loading.y.status = true
+                            emit('loadmoreY')
+                        }
+                    }
                 }
             }
 
@@ -402,12 +447,15 @@ export default {
 
         // 生命周期
         onMounted(() => {
-            sizeObserver.observe(refEl.scroll_box, {
+            const observeOpt = {
                 box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
-            })
-            sizeObserver.observe(refEl.scroll_content, {
-                box: 'border-box', // 确保 CSS 计算尺寸时包括边框和内边距
-            })
+            }
+            sizeObserver.observe(refEl.scroll_box, observeOpt)
+            sizeObserver.observe(refEl.scroll_content, observeOpt)
+
+            // signal 的核心作用：优雅地取消监听
+            // passive: true 主要用来提升滚动性能，告诉浏览器我不打算阻止滚动，你放心大胆地滚
+            // 如果你需要阻止滚动，必须显式设置 passive: false 才能调用 preventDefault
             refEl.scroll_box.addEventListener('wheel', mousewheel, { signal, passive: false })
 
             if (props.scroll == 'x') {
@@ -427,16 +475,14 @@ export default {
                     refEl.scroll_content.style.display = 'flex'
                 }
             } else {
+                // 垂直滚动 或 水平垂直滚动
                 if (props.scroll == 'y') {
                     refEl.scroll_content.style.width = '100%'
                 }
+                // 设置吸顶元素的尺寸
                 refEl.sticky_anchor.style.width = '100%'
                 refEl.sticky_anchor.style.height = '0px'
             }
-
-            // refEl.scroll_box.style.overflowX = showX.value ? 'auto' : 'hidden'
-
-            // refEl.scroll_box.style.overflowY = showY.value ? 'auto' : 'hidden'
         })
         // onUpdated(() => {
         //     // nextTick(handleSlot)
@@ -451,9 +497,52 @@ export default {
             }
         })
 
+        const scrollCheck = (scroll) => {
+            const scrollLow = scroll.toLowerCase()
+            if (scrollLow == 'x' || scrollLow == 'y') {
+                return scrollLow
+            }
+            return null
+        }
+        let customUpScroll = ''
+        const customUp = () => {
+            document.removeEventListener('mouseup', customUp, true)
+            document.removeEventListener('pointerup', customUp, true)
+
+            for (let char of customUpScroll) {
+                const charLow = scrollCheck(char)
+                if (charLow) resetTime(charLow)
+            }
+            customUpScroll = ''
+        }
+
         expose({
-            scrollTo: scroll_to,
-            scrollEnd: scroll_end,
+            scroll: (val_x, val_y) => {},
+            scrollX: (val) => {
+                if (props.customScrollBar && customUpScroll == '') {
+                    customUpScroll = 'x'
+                    document.addEventListener('mouseup', customUp, true)
+                    document.addEventListener('pointerup', customUp, true)
+                }
+                scroll_to('x', val)
+            },
+            scrollY: (val) => {
+                if (props.customScrollBar && customUpScroll == '') {
+                    customUpScroll = 'y'
+                    document.addEventListener('mouseup', customUp, true)
+                    document.addEventListener('pointerup', customUp, true)
+                }
+                scroll_to('y', val)
+            },
+            clearLoading: (scroll = 'xy') => {
+                for (let char of scroll) {
+                    const charLow = scrollCheck(char)
+                    if (charLow) {
+                        loading[charLow].status = false
+                        loading[charLow].end = true
+                    }
+                }
+            },
         })
 
         return {
@@ -469,8 +558,8 @@ export default {
             overscrollStateY,
             scrollStateX,
             scrollStateY,
-            noMoreX,
-            noMoreY,
+            loading,
+            disTeleport,
         }
     },
 }

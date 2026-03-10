@@ -1,213 +1,129 @@
 <script>
 import { ref, onMounted } from 'vue'
 import StickyScroll from '../lib/sticky_scroll/index.vue'
+import Base from './components/base.vue'
+import AutoH from './components/auto_height.vue'
+import OnlyX from './components/only_x.vue'
+import OnlyY from './components/only_y.vue'
+import Theme from './components/theme.vue'
+import Over from './components/over.vue'
+import EndLoad from './components/end_load.vue'
+import CustomScroll from './components/custom_scroll.vue'
 
 export default {
-    components: { StickyScroll },
-    // props: {
-    //     data: {
-    //         type: Object,
-    //         required: true,
-    //     },
-    // },
+    components: { StickyScroll, Base, AutoH, OnlyX, OnlyY, Theme, Over, EndLoad, CustomScroll },
     setup() {
-        const liData = ref([...Array(35).keys()])
-
-        const ssEl = ref(null)
-        const trackY = ref(null)
-        const thumbY = ref(null)
-
-        let math_temp = 0
-        let thumb_mouse_offset = 0
-
-        const track_move = (e) => {
-            let offset = e.offsetY - thumb_mouse_offset
-            let val = Math.round(offset * math_temp)
-            ssEl.value.scrollTo('y', val)
-        }
-
-        const track_up = (e) => {
-            const track = e.currentTarget
-            track.removeEventListener('pointermove', track_move)
-            track.removeEventListener('pointerup', track_up)
-
-            ssEl.value.scrollEnd()
-        }
-
-        const track_down = (e) => {
-            const track = e.currentTarget
-
-            track.addEventListener('pointerup', track_up)
-            track.addEventListener('pointermove', track_move)
-            track.setPointerCapture(e.pointerId)
-
-            let offset = e.offsetY
-
-            if (e.target === thumbY.value) {
-                // 拖拽 thumb: 使用点击的位置
-                thumb_mouse_offset = offset
-            } else {
-                // 在 track 拖拽: 使用 thumb 的中心
-                thumb_mouse_offset = thumbY.value.offsetHeight / 2
-                offset -= thumb_mouse_offset
-                const val = Math.round(offset * math_temp)
-
-                ssEl.value.scrollTo('y', val)
-            }
-        }
-
-        const scrollMove = ({ scrollLeft, scrollTop, scrollWidth, scrollHeight }) => {
-            const translateY =
-                scrollHeight > 0 ? (trackY.value.offsetHeight * scrollTop) / scrollHeight : 0
-            thumbY.value.style.transform = `translate3d(0, ${translateY}px, 0)`
-        }
-
-        const scrollResize = ({ offsetWidth, offsetHeight, scrollWidth, scrollHeight }) => {
-            const height =
-                scrollHeight > 0 ? (trackY.value.offsetHeight * offsetHeight) / scrollHeight : 0
-            thumbY.value.style.height = height + 'px'
-
-            math_temp = scrollHeight / trackY.value.offsetHeight
-        }
-
-        const loadmoreData = ref([])
-        const getMore = () => {
-            const start = loadmoreData.value.length
-            const newData = Array.from({ length: 20 }, (_, i) => start + i)
-            loadmoreData.value.push(...newData)
-        }
-        getMore()
-        const loadmore = (type) => {
-            console.log('loadmore', type)
-
-            setTimeout(getMore, 3000)
-        }
-
-        onMounted(() => {})
-
-        return {
-            liData,
-            ssEl,
-            trackY,
-            thumbY,
-            track_down,
-            scrollMove,
-            scrollResize,
-            loadmore,
-            loadmoreData,
-        }
+        return {}
     },
 }
 </script>
 
 <template lang="pug">
 .box
-    h1 水平滚动
-    .flex
-        .left
-            h2.mb10 下滚动条
-            .scroll_x.pd5.x
-                StickyScroll(scroll="x", radius="12px")
-                    .xxxx
-                        li(v-for="i in liData", :key="i")
-                            .content {{i}}
-        .right
-            h2.mb10 上滚动条
-            .scroll_x.pd5.reverse_x
-                StickyScroll(scroll="x", radius="12px", reverseX)
-                    .xxxx
-                        li(v-for="i in liData", :key="i")
-                            .content {{i}}
-    h1 垂直滚动
-    .flex
-        .left
-            h2.mb10 右滚动条    
-            .scroll_y.pd5.y
-                StickyScroll(scroll="y", radius="12px")
-                    .yyyy
-                        li(v-for="i in liData", :key="i")
-                            .content {{i}}
-        .right
-            h2.mb10 左滚动条  
-            .scroll_y.pd5.reverse_y
-                StickyScroll(scroll="y", radius="12px", reverseY)
-                    .yyyy
-                        li(v-for="i in liData", :key="i")
-                            .content {{i}}
-    h1 水平垂直滚动
-    .flex
-        .left
-            h2.mb10 右下滚动条    
-            .scroll_xy.pd5.x.y
-                StickyScroll(scroll="xy", radius="12px")
-                    .xyxy
-                        li(v-for="i in liData", :key="i")
-                            .content
-                                .start {{i}}
-                                .end end {{i}}
-        .right
-            h2.mb10 左上滚动条  
-            .scroll_xy.pd5.reverse_x.reverse_y
-                StickyScroll(scroll="xy", radius="12px", reverseX, reverseY)
-                    .xyxy
-                        li(v-for="i in liData", :key="i")
-                            .content
-                                .start {{i}}
-                                .end end {{i}}
-    
-    .flex
-        .left
-            h1 自定义滚动条
-            .custom_scroll_bar
-                .sticky_scroll_bar
-                    .track_y(ref="trackY", data-scroll="y", @pointerdown.stop="track_down")
-                        .thumb_y(ref="thumbY")
-                .scroll_xy.pd5(style="width: 0; flex: 1;")
-                    StickyScroll(ref="ssEl", scroll="xy", radius="12px", customScrollBar, @scroll_move="scrollMove", @scroll_resize="scrollResize")
-                        .xyxy
-                            li(v-for="i in liData", :key="i")
-                                .content 
-                                    .start {{i}}
-                                    .end end {{i}}
-        .right
-            h1 自定义过界提示
-            .scroll_xy.pd5.x.y
-                StickyScroll(scroll="xy", radius="12px")
-                    .xyxy
-                        li(v-for="i in liData", :key="i")
-                            .content
-                                .start {{i}}
-                                .end end {{i}}
-                    template(v-slot:before_x)
-                        .before_x before_x
-                    template(v-slot:after_x)
-                        .after_x after_x
-                    template(v-slot:before_y)
-                        .before_y before_y
-                    template(v-slot:after_y)
-                        .after_y after_y
-    .flex
-        .left
-            h2.mb10 触底加载    
-            .scroll_y.pd5.y
-                StickyScroll(scroll="y", radius="12px", :loadThreshold="200", @loadmore="loadmore")
-                    .yyyy
-                        li(v-for="i in loadmoreData", :key="i")
-                            .content {{i}}
-        .right
+    .header.mb_big
+        h3 灵感来源于 https://www.imaegoo.com/2020/h5-smooth-scroll/
+        br
+        h4.mb10 基础原理:
+        p.mb10 使用 position: sticky 作为定位锚点, 滚动内容使用 translate3d, 以达到更好的性能和更流畅的滚动体验
+        hr
+        h1 暴漏的方法:
+        .table
+            .row.head
+                .col.expose_name 方法
+                .col.expose_desc 说明
+            .row
+                .col.expose_name scroll( val_x, val_y )
+                .col.expose_desc 
+                    p 同时滚动 x 和 y 轴, 暂未实现
+            .row
+                .col.expose_name scrollX( value )
+                .col.expose_desc 
+                    p 滚动到指定位置
+            .row
+                .col.expose_name scrollY( value )
+                .col.expose_desc 
+                    p 滚动到指定位置
+            .row
+                .col.expose_name clearLoading( scroll )
+                .col.expose_desc
+                    p 清除loading状态
+                    p scroll: x､ y､ xy(默认)
+    Base
+    AutoH
+    OnlyX
+    OnlyY
+    Theme
+    Over
+    EndLoad
+    CustomScroll  
+    .footer
+        p 详细实现请参阅示例代码
 </template>
 
 <style lang="scss">
+#app {
+    --base_bg: #636363;
+    background: #2f3130;
+    // color: #f0f0f0;
+}
+.box {
+    width: 100%;
+    padding: 30px;
+}
+.header {
+    color: #f0f0f0;
+}
+.footer {
+    height: 20vh;
+    text-align: center;
+    padding: 30px;
+    font-size: 24px;
+    color: #f0f0f0;
+}
+.table {
+    background: #282c34;
+    border-radius: 30px;
+    overflow: hidden;
+    .row {
+        display: flex;
+        &:nth-child(odd) {
+            background-color: #202020; // 奇数行颜色
+        }
+
+        &:nth-child(even) {
+            background-color: #282c34; // 偶数行颜色
+        }
+
+        &.head {
+            background: #666;
+        }
+        .col {
+            flex: 1;
+            width: 0;
+            padding: 5px 15px;
+            font-size: 30px;
+            line-height: 1.6;
+            &.expose_name {
+                flex: 0 0 auto;
+                width: 400px;
+            }
+        }
+    }
+}
 .mb10 {
     margin-bottom: 10px;
 }
+.mb_big {
+    margin-bottom: 60px;
+}
 .flex {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    // justify-content: center;
+    // align-items: center;
     gap: 30px;
     width: 100%;
 }
+
 .left,
 .right {
     flex: 1;
@@ -220,27 +136,55 @@ export default {
     height: 100%;
     margin: 0 auto;
 }
+
+.h300 {
+    height: 300px;
+}
+pre {
+    padding: 30px;
+    font-size: 26px;
+}
+ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
 li {
     list-style: none;
-    color: #202020;
+    color: #f0f0f0;
+    // height: 30px;
+    background: #6c2c2d;
+    border-radius: 12px;
+    padding: 5px 15px;
 
     // background-color: #fff;
     .content {
-        background: greenyellow;
-        border-radius: 6px;
-        height: 30px;
+        width: 100vw;
+        height: 100%;
         line-height: 30px;
-        padding: 0 15px;
+
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 }
-.box {
-    width: 80%;
-    padding: 30px;
+.props_group {
+    display: flex;
+    .props {
+        width: 60px;
+        flex: 0 0 auto;
+    }
+    textarea {
+        width: 100%;
+    }
 }
 
 .scroll_x {
     width: 100%;
-    background: goldenrod;
+    background: var(--base_bg);
     margin-bottom: 15px;
     border-radius: 12px;
     li {
@@ -270,7 +214,7 @@ li {
 .scroll_y {
     width: 100%;
     height: 50vh;
-    background: goldenrod;
+    background: var(--base_bg);
     margin-bottom: 15px;
     border-radius: 12px;
     li {
@@ -286,7 +230,7 @@ li {
 
 .scroll_xy {
     height: 50vh;
-    background: goldenrod;
+    background: var(--base_bg);
     margin-bottom: 15px;
     border-radius: 12px;
     // padding: 5px;
@@ -304,7 +248,7 @@ li {
 }
 .custom_scroll_bar {
     position: relative;
-    display: flex;
+    display: none;
     gap: 30px;
     // justify-content: center;
     // align-items: center;
@@ -314,7 +258,7 @@ li {
         // left: 30px;
         width: 60px;
         height: 300px;
-        background-color: goldenrod;
+        background-color: #636363;
         padding: 5px;
         .track_y {
             width: 100%;
@@ -327,17 +271,5 @@ li {
             transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
         }
     }
-}
-.before_x,
-.after_x {
-    width: 100px;
-    height: 80%;
-    background-color: #202020;
-}
-.before_y,
-.after_y {
-    width: 80%;
-    height: 100px;
-    background-color: #202020;
 }
 </style>
