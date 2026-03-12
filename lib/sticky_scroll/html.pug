@@ -1,4 +1,4 @@
-.ss_sticky-containter(:ref="setRef('root')", :class="dark ? 'ss_darkness': 'ss_daylight'",
+.ss_sticky-containter(:ref="setRef('root')", :class="[theme ? 'ss_' + theme : 'ss_default']",
     :style="{minWidth: minW, minHeight: minH, maxWidth: maxW, maxHeight: maxH}",
 )
     .ss_scroll_box.ss_sticky_hide_default_scrollbar(

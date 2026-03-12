@@ -46,11 +46,11 @@ export default {
                 .col.props_desc 
                     p 滚动节点圆角
             .row
-                .col.props_name dark
-                .col.props_type Boolean
-                .col.props_def true
+                .col.props_name theme
+                .col.props_type String
+                .col.props_def default
                 .col.props_desc 
-                    p 暗色
+                    p 主题类名, 需要配合css使用
             .row
                 .col.props_name minW, minH
                 .col.props_type String
