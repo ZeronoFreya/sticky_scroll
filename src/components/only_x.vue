@@ -7,16 +7,17 @@ export default defineComponent({
     components: { Item },
     setup() {
         const reverse = ref(false)
+        const autoH = ref(true)
         const highlightCode = computed(() => {
             const reverseStr = reverse.value ? '\n    reverseX' : ''
-            return hljs.highlight(`<StickyScroll\n    scroll="x"${reverseStr}\n>`, {
-                language: 'xml',
-            })
+            return hljs.highlight(
+                `<StickyScroll\n    scroll="x"\n    :autoH="${autoH.value}"${reverseStr}\n>`,
+                {
+                    language: 'xml',
+                },
+            )
         })
-        const toggle = () => {
-            reverse.value = !reverse.value
-        }
-        return { highlightCode, toggle, reverse }
+        return { highlightCode, reverse, autoH }
     },
 })
 </script>
@@ -24,18 +25,23 @@ export default defineComponent({
 <template lang="pug">
 Item.item(title="水平滚动")
     .sticky_scroll
-        StickyScroll(scroll="x", :reverseX="reverse")
+        StickyScroll(scroll="x", :reverseX="reverse", :autoH="autoH")
             ul
                 li(v-for="i in 30", :key="i") {{i}}
     template(v-slot:code)
         pre(v-html="highlightCode.value" )
+        p autoH 为 true 可以自动占满高度，否则
         p 内部列表需要设置一个合适的宽高
-        button.btn(@click="toggle") 切换滚动条位置
+        p 无法动态修改，暂时解决不了
+        button.btn(@click="reverse = !reverse") 切换滚动条位置
+
 </template>
 
 <style lang="scss" scoped>
 .item {
-    .sticky_scroll {
+    .btn_group {
+        display: flex;
+        gap: 30px;
     }
     ul {
         height: 100%;

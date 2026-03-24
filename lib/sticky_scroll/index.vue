@@ -1,5 +1,5 @@
 <script>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, useSlots, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 import sProps from './props.js'
 
@@ -8,8 +8,11 @@ import useOverscroll from './use_overscroll'
 
 export default {
     components: {},
+    inheritAttrs: false,
     props: sProps,
     setup(props, { emit, expose }) {
+        const slots = useSlots()
+
         const refEl = {
             root: null,
             scroll_box: null,
@@ -151,6 +154,7 @@ export default {
         )
 
         const _resize = () => {
+            if (!refEl.scroll_content) return
             const { offsetWidth: scrollWidth, offsetHeight: scrollHeight } = refEl.scroll_content
             if (refEl.spacer_x) {
                 refEl.spacer_x.style.width = scrollWidth + 'px'
@@ -158,13 +162,26 @@ export default {
             if (refEl.spacer_y) {
                 refEl.spacer_y.style.height = scrollHeight + 'px'
             }
+
             if (props.autoH) {
-                refEl.root.style.height = Math.ceil(scrollHeight) + 'px'
+                const mch = Math.ceil(scrollHeight) + 'px'
+                refEl.root.style.height = mch
+                if (props.scroll == 'x') {
+                    refEl.scroll_content.style.height = mch
+                }
+            } else if (props.scroll == 'x') {
+                const xh = refEl.scroll_content.firstElementChild.offsetHeight + 'px'
+                refEl.scroll_content.style.height = xh
+                refEl.root.style.height = xh
             }
 
-            if (props.scroll == 'x') {
-                refEl.scroll_content.style.height = Math.ceil(scrollHeight) + 'px'
-            }
+            // if (props.scroll == 'x') {
+            //     if (!props.autoH) {
+            //         const xh = refEl.scroll_content.firstElementChild.offsetHeight + 'px'
+            //         refEl.scroll_content.style.height = xh
+            //         refEl.root.style.height = xh
+            //     }
+            // }
 
             const { scrollLeft, scrollTop, offsetWidth, offsetHeight } = refEl.scroll_box
 
@@ -229,20 +246,20 @@ export default {
             loading.y.status = false
         }
 
-        watch(
-            () => [props.scroll, props.autoH],
-            () => {
-                animeId.resize = requestAnimationFrame(() => _resize())
-            },
-            { flush: 'post' },
-        )
-
-        const sizeObserver = new ResizeObserver((entries) => {
+        const rafResize = () => {
             if (animeId.resize) {
                 cancelAnimationFrame(animeId.resize)
             }
             animeId.resize = requestAnimationFrame(() => _resize())
-        })
+        }
+
+        watch(
+            () => [props.scroll, props.autoH],
+            () => rafResize(),
+            { flush: 'post' },
+        )
+
+        const sizeObserver = new ResizeObserver(() => rafResize())
 
         const scrollX = (event, MaxScrollLeft) => {
             clearTime('x')
@@ -379,14 +396,26 @@ export default {
                 refEl.sticky_anchor.style.width = '0px'
                 refEl.sticky_anchor.style.height = '100%'
 
-                const validChildren = Array.from(refEl.scroll_content.childNodes).filter((node) => {
-                    if (node.nodeType === Node.COMMENT_NODE) return false
-                    if (node.nodeType === Node.TEXT_NODE) return false
-                    if (node.nodeType === Node.ELEMENT_NODE && node.dataset.scroll) return false
-                    return true
+                // const validChildren = Array.from(refEl.scroll_content.childNodes).filter((node) => {
+                //     if (node.nodeType === Node.COMMENT_NODE) return false
+                //     if (node.nodeType === Node.TEXT_NODE) return false
+                //     if (node.nodeType === Node.ELEMENT_NODE && node.dataset.scroll) return false
+                //     return true
+                // })
+
+                const defaultSlot = slots.default?.()
+                if (!defaultSlot) return
+
+                const validChildren = defaultSlot.filter((vnode) => {
+                    if (vnode.type === Symbol.for('v-fgt')) return true
+                    if (vnode.type === Symbol.for('v-txt')) return true
+                    return false
                 })
-                if (validChildren.length === 1) {
-                    validChildren[0].style.display = 'flex'
+
+                if (validChildren.length == 1 && validChildren[0].children.length === 1) {
+                    // validChildren[0].style.display = 'flex'
+                    const child = refEl.scroll_content.children[0]
+                    if (child) child.style.display = 'flex'
                 } else {
                     refEl.scroll_content.style.display = 'flex'
                 }

@@ -2,6 +2,7 @@
     :style="{minWidth: minW, minHeight: minH, maxWidth: maxW, maxHeight: maxH}",
 )
     .ss_scroll_box.ss_sticky_hide_default_scrollbar(
+        :class="$attrs.class",
         :ref="setRef('scroll_box')", 
         @scroll="mousescroll",
         :style="{borderRadius: radius, overflowX: scrollCfg.showX ? 'auto' : 'hidden', overflowY: scrollCfg.showY ? 'auto' : 'hidden'}"
@@ -45,7 +46,7 @@
                         slot(name="after_y")  
                             span.ss_overscroll_sticky_after_y  到底了    
                 .ss_overscroll_load_x(
-                    v-if="loading.x.status"
+                    v-if="loadThresholdX != -1 && loading.x.status"
                     data-scroll="x", 
                     :class="{ss_overscroll_show: overscrollStateX}",
                     :ref="setRef('overscroll.load_x')",
@@ -53,6 +54,7 @@
                     slot(name="load_x")  
                         span.ss_overscroll_sticky_load_x  加载中
                 .ss_overscroll_load_y(
+                    v-if="loadThresholdY != -1",
                     v-show="loading.y.status"
                     data-scroll="y", 
                     :class="{ss_overscroll_show: overscrollStateY}",

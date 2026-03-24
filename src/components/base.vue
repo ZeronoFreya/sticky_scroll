@@ -20,7 +20,7 @@ export default defineComponent({
 <template lang="pug">
 Item.item(title="最简状态（默认）")
     .sticky_scroll
-        StickyScroll
+        StickyScroll.xxxx
             ul
                 li(v-for="i in 30", :key="i")
                     .content
@@ -31,7 +31,10 @@ Item.item(title="最简状态（默认）")
         p 可以不用ul等节点包裹, 但加入父级元素便于编写样式
 </template>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .item {
+    .xxxx {
+        border-radius: 30px;
+    }
 }
 </style>

@@ -11,9 +11,15 @@ export default defineComponent({
         const highlightCode = computed(() => {
             const _theme = theme.value ? `\n    theme="${theme.value}"` : ''
             const html = hljs.highlight(
-                `<StickyScroll\n    :out="${out.value}"\n    radius="60px"${_theme}\n>`,
+                `<StickyScroll.my_style\n    :out="${out.value}"\n    radius="60px"${_theme}\n>`,
                 {
                     language: 'xml',
+                },
+            )
+            const myStyle = hljs.highlight(
+                `\n/* 或者 [仅支持类名] */\n.my_style { \n    border-radius: 60px; \n}`,
+                {
+                    language: 'css',
                 },
             )
             const css = theme.value
@@ -24,7 +30,7 @@ export default defineComponent({
                       },
                   )
                 : ref('')
-            return html.value + css.value
+            return html.value + myStyle.value + css.value
         })
 
         const toggle = () => {
@@ -39,7 +45,7 @@ export default defineComponent({
 <template lang="pug">
 Item.item(title="主题与样式")
     .sticky_scroll
-        StickyScroll(radius="60px", :theme="theme", :out="out")
+        StickyScroll.my_style(radius="60px", :theme="theme", :out="out")
             ul
                 li(v-for="i in 30", :key="i")
                     .content

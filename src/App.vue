@@ -42,7 +42,7 @@ export default {
             .row
                 .col.props_name radius
                 .col.props_type String
-                .col.props_def 0px
+                .col.props_def 
                 .col.props_desc 
                     p 滚动节点圆角
             .row
