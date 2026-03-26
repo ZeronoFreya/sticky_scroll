@@ -24,7 +24,7 @@ export default defineComponent({
             )
             const css = theme.value
                 ? hljs.highlight(
-                      `\n.ss_gold {\n    --hover_bg: gold;\n    --thumb_bg: goldenrod;\n    --track_bg: goldenrod;\n}`,
+                      `\n.gold {\n    --hover_bg: gold;\n    --thumb_bg: goldenrod;\n    --track_bg: goldenrod;\n}`,
                       {
                           language: 'css',
                       },
@@ -70,7 +70,7 @@ Item.item(title="主题与样式")
         display: flex;
         gap: 30px;
     }
-    .ss_gold {
+    .gold {
         --hover_bg: gold;
         --thumb_bg: goldenrod;
         --track_bg: goldenrod;
